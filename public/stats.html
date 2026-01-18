@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHCM POS | Statistics</title>
+
+    <link rel="stylesheet" href="styles.css" /> 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    
+    <style>
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            padding: 25px;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .kpi-card h4 {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .kpi-card .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        /* Specific colors for specific cards */
+        .revenue-value { color: #2b6cb0 !important; }
+        .profit-value { color: #38a169 !important; }
+        
+        /* Table Centering Fix */
+        .stats-table th, .stats-table td {
+            text-align: center !important;
+            padding: 15px !important;
+        }
+        .card h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-brand">
+        <img src="/photos/phcm-logo.png" class="header-logo" alt="PHCM Logo" /> 
+        PHCM CAFETERIA
+    </div>
+    <nav class="header-nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+</header>
+
+<div class="container">
+    <div class="topbar">
+        <h1><i class="fas fa-chart-line"></i> Sales Statistics</h1>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <h4>Total Revenue</h4>
+            <div class="value revenue-value" id="revenueValue">₱0.00</div>
+        </div>
+
+        <div class="kpi-card">
+            <h4>Net Profit</h4>
+            <div class="value profit-value" id="profitValue">₱0.00</div>
+        </div>
+
+        <div class="kpi-card">
+            <h4>Sales Count</h4>
+            <div class="value" id="salesCountValue">0</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-trophy"></i> BEST SELLING PRODUCTS</h3>
+        <table class="data-table stats-table"> 
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Total Sold</th>
+                </tr>
+            </thead>
+            <tbody id="topItemsTableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // 1. Security Check: Redirect to login if no token
+    const token = localStorage.getItem('pos_token');
+    if (!token) {
+        window.location.href = 'login.html';
+    }
+
+    // 2. Logout Logic
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('pos_token');
+        window.location.href = 'login.html';
+    });
+
+    // 3. Fetch Statistics from API
+    const fetchStats = async () => {
+        try {
+            const res = await fetch('/api/stats', { 
+                headers: { 'Authorization': `Bearer ${token}` } 
+            });
+
+            if (!res.ok) throw new Error('Failed to fetch statistics');
+
+            // FIX: This line was missing in your original code
+            const data = await res.json();
+
+            // Update KPI cards
+            document.getElementById('revenueValue').textContent = '₱' + data.revenue.toFixed(2);
+            document.getElementById('salesCountValue').textContent = data.total_sales;
+            document.getElementById('profitValue').textContent = '₱' + data.profit.toFixed(2);
+
+            // Update Top Items Table
+            const tbody = document.getElementById('topItemsTableBody');
+            tbody.innerHTML = ''; 
+
+            if (!data.top_items || data.top_items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px;">No sales data available yet.</td></tr>';
+                return;
+            }
+
+            data.top_items.forEach(item => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><strong>${item.name}</strong></td>
+                    <td><span class="badge">${item.sold} sold</span></td>`;
+            });
+
+        } catch (error) {
+            console.error('Stats Error:', error);
+            // Optionally show error to user
+        }
+    };
+
+    // Run on page load
+    document.addEventListener('DOMContentLoaded', fetchStats);
+</script>
+
+</body>
+</html>

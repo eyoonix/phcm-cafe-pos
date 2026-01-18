@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHCM POS | Login</title>
+
+
+    <!-- GFONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+
+    <!-- FONTAWSOME -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+
+<style>
+body {
+margin: 0;
+padding: 0;
+font-family: 'Poppins', sans-serif;
+background: linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/photos/login-bg.png');
+background-size: cover;
+background-position: center;
+height: 100vh;
+display: flex;
+justify-content: center;
+align-items: center;
+}
+
+
+.login-card {
+width: 360px;
+background: rgb(255, 255, 255);
+border-radius: 18px;
+padding: 32px 28px;
+box-shadow: 0 8px 25px rgb(255, 251, 0);
+animation:  1s ease;
+text-align: center;
+}
+
+
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(15px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+.logo-container {
+    display: flex;            
+    justify-content: center;   
+    align-items: center;       
+    gap: 15px;                
+    margin-bottom: 15px;       
+}
+
+.school-logo {
+
+    width: 150px; 
+    height: 150px;
+    margin-bottom: 0; 
+}
+
+
+h2 {
+margin: 0;
+font-size: 24px;
+font-weight: 600;
+color: #333;
+}
+
+
+.input-group {
+margin-top: 18px;
+text-align: left;
+}
+
+
+.input-group label {
+font-size: 14px;
+font-weight: 500;
+color: #333;
+}
+
+
+.input-box {
+position: relative;
+}
+
+
+.input-box i {
+position: absolute;
+top: 50%;
+left: 10px;
+transform: translateY(-50%);
+color: #888;
+}
+
+
+.input {
+width: 100%;
+padding: 12px 12px 12px 38px;
+border-radius: 8px;
+border: 1px solid #ccc;
+font-size: 15px;
+outline: none;
+transition: all 0.2s;
+box-sizing: border-box;
+}
+
+.input:focus {
+border-color: #007bff;
+box-shadow: 0 0 5px rgba(0,123,255,0.4);
+}
+
+
+.btn-login {
+width: 100%;
+margin-top: 22px;
+padding: 12px;
+background: #007bff;
+border: none;
+color: white;
+border-radius: 8px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+transition: background 0.2s;
+}
+
+
+.btn-login:hover {
+background: #005fcc;
+}
+
+
+.default-info {
+margin-top: 12px;
+font-size: 13px;
+color: #555;
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="logo-container">
+        <img src="/photos/phcm-logo.png" class="school-logo" alt="PHCM Logo" />
+        <img src="/photos/shs-logo.png" class="school-logo" alt="SHS Logo" />
+    </div>
+    <h2>PHCM CAFETERIA</h2>
+    <h2>Login</h2>
+
+
+    <form id="loginForm">
+        <div class="input-group">
+            <label>Username</label>
+            <div class="input-box">
+                <i class="fa fa-user"></i>
+                <input id="username" class="input" placeholder="Enter username" required />
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <div class="input-box">
+                <i class="fa fa-lock"></i>
+                <input id="password" type="password" class="input" placeholder="Enter password" required />
+            </div>
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">Log In</button>
+    </form>
+
+    <p class="default-info">Default: phcm / phcm123</p>
+</div>
+
+<script>
+// Target the form ID
+document.getElementById('loginForm').addEventListener('submit', async (event) => {
+    // 1. This stops the page from refreshing (the default form behavior)
+    event.preventDefault();
+
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+
+        if (res.ok) {
+            const j = await res.json();
+            localStorage.setItem('pos_token', j.token);
+            location.href = 'dashboard.html';
+        } else {
+            alert('Login failed: Invalid username or password');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Could not connect to the server.');
+    }
+});
+</script>
+</body>
+</html>

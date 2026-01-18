@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHCM POS | Dashboard</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <link rel="stylesheet" href="styles.css" /> 
+</head>
+<body>
+
+<header class="header">
+    <div class="header-brand">
+        <img src="/photos/phcm-logo.png" class="header-logo" alt="PHCM Logo" /> 
+        PHCM CAFETERIA
+    </div>
+    <nav class="header-nav">
+        <a href="customize.html">Customize Menu</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+</header>
+<div class="dashboard-container">
+    <h1>DASHBOARD</h1>
+    
+    <div class="dashboard-content">
+
+        <div class="card">
+        <h3><i class="fas fa-boxes"></i> Products List</h3>
+        <table class="data-table">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Product Name</th>
+                <th>Price</th>
+                <th>Stock Count</th>
+                <th>Product Status</th>
+            </tr>
+                </thead>
+                <tbody id="productsTableBody">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-fast-forward"></i> Quick Actions</h3>
+            <div class="quick-actions-buttons">
+                <a href="payment.html" class="btn-primary"><i class="fas fa-cash-register "></i>Order Payment</a>
+                <a href="stats.html" class="btn-primary"><i class="fas fa-chart-line "></i>Statistics</a>
+                <a href="trans.html" class="btn-primary"><i class="fas fa-list "></i>Transaction History</a>
+            </div>
+                </div>
+        </div>
+        
+    </div>
+</div>
+<script>
+
+document.addEventListener('DOMContentLoaded', () => {
+    // token checker
+    const token = localStorage.getItem('pos_token');
+    if (!token) {
+        location.href = 'login.html';
+        return;
+    }
+
+    // log-out function
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('pos_token');
+        location.href = 'login.html';
+    });
+
+    const fetchProducts = async () => {
+    try {
+        const res = await fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
+        const products = await res.json();
+        const tbody = document.getElementById('productsTableBody');
+        tbody.innerHTML = ''; 
+
+        products.forEach(p => {
+            const row = tbody.insertRow();
+            const imgUrl = p.photo_path || '/photos/default.png';
+            const status = p.stock <= 5 ? 'OUT OF STOCK' : 'OK';
+            const statusClass = p.stock <= 5 ? 'low' : 'ok';
+
+            // fix and max layout
+            row.innerHTML = `
+                <td style="padding: 15px;">
+                    <img src="${imgUrl}" onerror="this.src='/photos/default.png'" 
+                         style="width: 100px; height: 75px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                </td>
+                <td style="font-weight: 600; font-size: 1.1em;">${p.name}</td>
+                <td>₱${p.price.toFixed(2)}</td>
+                <td style="text-align: center;"><strong>${p.stock}</strong></td>
+                <td style="text-align: center;"><span class="status-badge ${statusClass}">${status}</span></td>
+            `;
+        });
+    } catch (error) {
+        console.error('Failed to fetch:', error);
+    }
+};
+
+    fetchProducts();
+});
+</script>
+
+</body>
+</html>

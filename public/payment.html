@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>PHCM POS | Cart</title>
+    <link rel="stylesheet" href="styles.css" /> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+<header class="header">
+    <div class="header-brand">
+        <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" /> 
+        PHCM CAFETERIA
+    </div>
+    <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
+</header>
+
+<div class="payment-layout">
+    <div class="card" style="flex:2; overflow-y:auto;">
+        <h3><i class="fas fa-utensils"></i> Menu Items</h3>
+        <div id="productGrid"></div>
+    </div>
+
+    <div class="card cart-panel">
+        <h3><i class="fa fa-shopping-cart"></i> Cart</h3>
+        <div class="cart-list" id="cartList"></div>
+        <div class="cart-total">Total: <span id="totalAmount">₱0.00</span></div>
+        
+        <div style="margin-top:15px;">
+            <label>Cash Received</label>
+            <input type="number" id="paymentInput" class="input" placeholder="₱0.00">
+        </div>
+        <div style="margin:10px 0;">Change: <span id="changeDue">₱0.00</span></div>
+        
+        <button id="processBtn" class="btn-primary" style="width:100%" disabled>Complete Sale</button>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+    let products = [];
+    const token = localStorage.getItem('pos_token');
+
+    async function fetchProducts() {
+        const res = await fetch('/api/products', { headers: {'Authorization': `Bearer ${token}`} });
+        products = await res.json();
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+        products.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'product-btn';
+            div.innerHTML = `
+                <img src="${p.photo_path || '/photos/default.png'}" onerror="this.src='/photos/default.png'">
+                <div class="info">
+                    <strong>${p.name}</strong><br>
+                    <small>₱${p.price.toFixed(2)} | Stock: ${p.stock}</small>
+                </div>
+            `;
+            div.onclick = () => {
+                const item = cart.find(i => i.product_id === p.id);
+                if(item) item.qty++; else cart.push({product_id: p.id, qty: 1});
+                renderCart();
+            };
+            grid.appendChild(div);
+        });
+    }
+
+    function renderCart() {
+        const list = document.getElementById('cartList');
+        let total = 0;
+        list.innerHTML = '';
+        cart.forEach(item => {
+            const p = products.find(prod => prod.id === item.product_id);
+            const subtotal = p.price * item.qty;
+            total += subtotal;
+            list.innerHTML += `<div class="cart-item">
+                <span>${p.name} x${item.qty}</span>
+                <span>₱${subtotal.toFixed(2)} <i class="fas fa-times-square" style="color:red;cursor:pointer" onclick="removeItem(${p.id})"></i></span>
+            </div>`;
+        });
+        document.getElementById('totalAmount').innerText = '₱' + total.toFixed(2);
+        updateChange();
+    }
+
+    function removeItem(id) {
+        cart = cart.filter(i => i.product_id !== id);
+        renderCart();
+    }
+
+    function updateChange() {
+        const total = parseFloat(document.getElementById('totalAmount').innerText.replace('₱',''));
+        const cash = parseFloat(document.getElementById('paymentInput').value) || 0;
+        const change = cash - total;
+        document.getElementById('changeDue').innerText = '₱' + (change > 0 ? change.toFixed(2) : '0.00');
+        document.getElementById('processBtn').disabled = (total === 0 || cash < total);
+    }
+
+    document.getElementById('paymentInput').oninput = updateChange;
+    document.getElementById('processBtn').onclick = async () => {
+        const cash = parseFloat(document.getElementById('paymentInput').value);
+        await fetch('/api/sales', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+            body: JSON.stringify({ items: cart, payment: cash })
+        });
+        alert("CUSTOMER PAYMENT SUCCESSFUL!");
+        cart = [];
+        document.getElementById('paymentInput').value = '';
+        fetchProducts();
+        renderCart();
+    };
+
+    fetchProducts();
+</script>
+</body>
+</html>

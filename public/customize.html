@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHCM POS | Customize</title>
+
+    <link rel="stylesheet" href="styles.css" /> 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+<header class="header">
+    <div class="header-brand">
+        <img src="/photos/phcm-logo.png" class="header-logo" alt="PHCM Logo" /> 
+        PHCM CAFETERIA
+    </div>
+    <nav class="header-nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+</header>
+
+<div class="container">
+    <div class="topbar">
+        <h1><i class="fas fa-utensils"></i> Menu Customization</h1>
+        <button id="showAddFormBtn" class="btn"><i class="fas fa-plus-circle"></i> Add New Product</button>
+    </div>
+
+    <div class="card" id="addEditForm" style="display: none; margin-bottom: 20px;">
+        <h3><span id="formTitle">Add New Product</span></h3>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+                <label class="small">Product Name</label>
+                <input type="text" id="nameInput" class="input" placeholder="e.g. Porkchop">
+            </div>
+            <div>
+                <label class="small">Selling Price (₱)</label>
+                <input type="number" id="priceInput" class="input" placeholder="0.00">
+            </div>
+            <div>
+                <label class="small">Cost Price (₱)</label>
+                <input type="number" id="costPriceInput" class="input" placeholder="0.00">
+            </div>
+            <div>
+                <label class="small">Stock Quantity</label>
+                <input type="number" id="stockInput" class="input" placeholder="0">
+            </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label class="small">Image Filename (e.g. porkchop.jpg)</label>
+            <input type="text" id="photoInput" class="input" placeholder="porkchop.jpg">
+        </div>
+        
+        <button id="saveProductBtn" class="btn" style="width: 100%;"><i class="fas fa-save"></i> Save Product</button>
+        <p class="small" id="formError" style="color: red; margin-top: 10px;"></p>
+        <input type="hidden" id="productId"> 
+    </div>
+
+    <div class="card">
+        <h3>Current Menu Items</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">ID</th>
+                    <th style="width: 30%;">Name</th>
+                    <th style="width: 15%;">Selling Price</th>
+                    <th style="width: 15%;">Cost Price</th>
+                    <th style="width: 10%;">Stock</th>
+                    <th style="width: 25%;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem('pos_token');
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!token) { location.href = 'login.html'; return; }
+        
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('pos_token');
+            location.href = 'login.html';
+        });
+
+        fetchProducts();
+
+        document.getElementById('showAddFormBtn').addEventListener('click', () => {
+            const form = document.getElementById('addEditForm');
+            if (form.style.display === 'none') {
+                resetForm();
+                form.style.display = 'block';
+            } else {
+                form.style.display = 'none';
+            }
+        });
+
+        document.getElementById('saveProductBtn').addEventListener('click', saveProduct);
+        document.getElementById('productsTableBody').addEventListener('click', handleTableActions);
+    });
+
+    const resetForm = () => {
+        document.getElementById('formTitle').textContent = 'Add New Product';
+        document.getElementById('nameInput').value = '';
+        document.getElementById('priceInput').value = '';
+        document.getElementById('costPriceInput').value = '';
+        document.getElementById('stockInput').value = '';
+        document.getElementById('photoInput').value = '';
+        document.getElementById('productId').value = '';
+        document.getElementById('formError').textContent = '';
+    };
+
+    const fetchProducts = async () => {
+        try {
+            const res = await fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
+            const products = await res.json();
+            const tbody = document.getElementById('productsTableBody');
+            tbody.innerHTML = ''; 
+
+            products.forEach(p => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${p.id}</td>
+                    <td><strong>${p.name}</strong><br><small style="color:gray">${p.photo_path || 'no-image.jpg'}</small></td>
+                    <td>₱${p.price.toFixed(2)}</td>
+                    <td>₱${(p.cost_price || 0).toFixed(2)}</td>
+                    <td>${p.stock}</td>
+                    <td>
+                        <button class="btn small edit-btn" 
+                            data-id="${p.id}" 
+                            data-name="${p.name}" 
+                            data-price="${p.price}" 
+                            data-cost="${p.cost_price || 0}"
+                            data-stock="${p.stock}" 
+                            data-photo="${p.photo_path || ''}"
+                            style="background: #38a169;">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn small delete-btn" data-id="${p.id}" style="background: #e53e3e;">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                `;
+            });
+        } catch (error) {
+            console.error('Fetch error:', error);
+        }
+    };
+
+    const saveProduct = async () => {
+        const id = document.getElementById('productId').value;
+        const name = document.getElementById('nameInput').value.trim();
+        const price = parseFloat(document.getElementById('priceInput').value);
+        const cost_price = parseFloat(document.getElementById('costPriceInput').value) || 0;
+        const stock = parseInt(document.getElementById('stockInput').value);
+        let photo_path = document.getElementById('photoInput').value.trim();
+
+        // Simple validation
+        if (!name || isNaN(price) || isNaN(stock)) {
+            document.getElementById('formError').textContent = "Please fill in Name, Price, and Stock.";
+            return;
+        }
+
+        // Add folder path if user just typed the name
+        if (photo_path && !photo_path.startsWith('/photos/')) {
+            photo_path = '/photos/' + photo_path;
+        }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/products/${id}` : '/api/products';
+        
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ name, price, cost_price, stock, photo_path })
+            });
+
+            if (res.ok) {
+                document.getElementById('addEditForm').style.display = 'none';
+                resetForm();
+                fetchProducts();
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+        }
+    };
+
+    const handleTableActions = (e) => {
+        const editBtn = e.target.closest('.edit-btn');
+        const deleteBtn = e.target.closest('.delete-btn');
+
+        if (editBtn) {
+            document.getElementById('formTitle').textContent = 'Edit Product';
+            document.getElementById('productId').value = editBtn.dataset.id;
+            document.getElementById('nameInput').value = editBtn.dataset.name;
+            document.getElementById('priceInput').value = editBtn.dataset.price;
+            document.getElementById('costPriceInput').value = editBtn.dataset.cost;
+            document.getElementById('stockInput').value = editBtn.dataset.stock;
+            
+            // Populate photo path so it's not lost
+            let photo = editBtn.dataset.photo;
+            if (photo.startsWith('/photos/')) photo = photo.replace('/photos/', '');
+            document.getElementById('photoInput').value = photo;
+
+            document.getElementById('addEditForm').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        if (deleteBtn) {
+            const id = deleteBtn.dataset.id;
+            if (confirm("Delete this product?")) {
+                fetch(`/api/products/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(() => fetchProducts());
+            }
+        }
+    };
+</script>
+</body>
+</html>s
