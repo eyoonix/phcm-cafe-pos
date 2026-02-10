@@ -28,10 +28,21 @@
         <div class="cart-total">Total: <span id="totalAmount">₱0.00</span></div>
         
         <div style="margin-top:15px;">
-            <label>Cash Received</label>
-            <input type="number" id="paymentInput" class="input" placeholder="₱0.00">
-        </div>
-        <div style="margin:10px 0;">Change: <span id="changeDue">₱0.00</span></div>
+        <label>Cash Received</label>
+        <input type="number" id="paymentInput" class="input" placeholder="₱0.00">
+    </div>
+
+    <div class="quick-cash-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px;">
+       <button class="btn-secondary" onclick="setCash(20)">₱20</button>
+       <button class="btn-secondary" onclick="setCash(50)">₱50</button>
+       <button class="btn-secondary" onclick="setCash(100)">₱100</button>
+      <button class="btn-secondary" onclick="setCash(200)">₱200</button>
+        <button class="btn-secondary" onclick="setCash(500)">₱500</button>
+        <button class="btn-secondary" onclick="setCash(1000)">₱1000</button>
+        <button class="btn-secondary" style="grid-column: span 3; background-color: #38a169; color: white;" onclick="setExact()">EXACT AMOUNT</button>
+    </div>
+
+    <div style="margin:10px 0;">Change: <span id="changeDue">₱0.00</span></div>
         
         <button id="processBtn" class="btn-primary" style="width:100%" disabled>Complete Sale</button>
     </div>
@@ -47,39 +58,92 @@
         products = await res.json();
         const grid = document.getElementById('productGrid');
         grid.innerHTML = '';
+        
         products.forEach(p => {
+            const isOutOfStock = p.stock <= 0;
             const div = document.createElement('div');
-            div.className = 'product-btn';
+            
+            div.className = `product-btn ${isOutOfStock ? 'disabled-item' : ''}`;
+            
             div.innerHTML = `
-                <img src="${p.photo_path || '/photos/default.png'}" onerror="this.src='/photos/default.png'">
+                <img src="${p.photo_path || '/photos/default.png'}" onerror="this.src='/photos/default.png'" 
+                     style="${isOutOfStock ? 'filter: grayscale(100%); opacity: 0.5;' : ''}">
                 <div class="info">
                     <strong>${p.name}</strong><br>
-                    <small>₱${p.price.toFixed(2)} | Stock: ${p.stock}</small>
+                    <small>${isOutOfStock ? '<span style="color:red; font-weight:bold;">OUT OF STOCK</span>' : `₱${p.price.toFixed(2)} | Stock: ${p.stock}`}</small>
                 </div>
             `;
+
+            // Only allow clicking if there is stock
             div.onclick = () => {
-                const item = cart.find(i => i.product_id === p.id);
-                if(item) item.qty++; else cart.push({product_id: p.id, qty: 1});
-                renderCart();
+                if (isOutOfStock) {
+                    alert("This item is currently out of stock!");
+                    return;
+                }
+                addToCart(p);
             };
             grid.appendChild(div);
         });
     }
 
+    // Function for Quick Cash buttons
+    function setCash(amount) {
+    const input = document.getElementById('paymentInput');
+    input.value = amount;
+    updateChange(); // Trigger the calculation
+    }
+
+    // Function for the Exact Amount button
+        function setExact() {
+    const total = parseFloat(document.getElementById('totalAmount').innerText.replace('₱', ''));
+    const input = document.getElementById('paymentInput');
+    
+    if (total > 0) {
+        input.value = total.toFixed(2);
+        updateChange();
+    } else {
+        alert("Cart is empty!");
+    }
+    }
+
+    // --- NEW FUNCTION ADDED HERE ---
+    function addToCart(p) {
+        const itemInCart = cart.find(i => i.product_id === p.id);
+        
+        if (itemInCart) {
+            // Check if adding one more exceeds available stock
+            if (itemInCart.qty >= p.stock) {
+                alert(`Sorry, only ${p.stock} units of ${p.name} are available.`);
+                return;
+            }
+            itemInCart.qty++;
+        } else {
+            cart.push({product_id: p.id, qty: 1});
+        }
+        renderCart();
+    }
+    // -------------------------------
+
     function renderCart() {
         const list = document.getElementById('cartList');
+        const totalSpan = document.getElementById('totalAmount');
         let total = 0;
-        list.innerHTML = '';
-        cart.forEach(item => {
+    
+        const itemsHtml = cart.map(item => {
             const p = products.find(prod => prod.id === item.product_id);
             const subtotal = p.price * item.qty;
             total += subtotal;
-            list.innerHTML += `<div class="cart-item">
-                <span>${p.name} x${item.qty}</span>
-                <span>₱${subtotal.toFixed(2)} <i class="fas fa-times-square" style="color:red;cursor:pointer" onclick="removeItem(${p.id})"></i></span>
-            </div>`;
-        });
-        document.getElementById('totalAmount').innerText = '₱' + total.toFixed(2);
+            return `
+                <div class="cart-item">
+                    <span>${p.name} (x${item.qty})</span>
+                    <span>₱${subtotal.toFixed(2)} 
+                        <i class="fas fa-trash" style="color:#e53e3e; cursor:pointer; margin-left:10px;" onclick="removeItem(${p.id})"></i>
+                    </span>
+                </div>`;
+        }).join('');
+
+        list.innerHTML = itemsHtml;
+        totalSpan.innerText = '₱' + total.toFixed(2);
         updateChange();
     }
 

@@ -145,19 +145,44 @@ app.delete('/api/products/:id', auth, (req, res) => {
 // =================================================================
 app.post('/api/sales', auth, (req, res) => {
     const { items } = req.body;
-    if (!items || !Array.isArray(items)) return res.status(400).json({ error: 'No items' });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'No items in cart' });
+    }
 
+    // Start a transaction to ensure database integrity
     db.serialize(() => {
-        items.forEach(it => {
-            db.get(`SELECT price FROM products WHERE id = ?`, [it.product_id], (err, p) => {
-                if (!err && p) {
+        db.run("BEGIN TRANSACTION");
+
+        let errorOccurred = false;
+
+        items.forEach((it, index) => {
+            // Check stock first
+            db.get(`SELECT stock, price, name FROM products WHERE id = ?`, [it.product_id], (err, p) => {
+                if (err || !p) {
+                    errorOccurred = true;
+                } else if (p.stock < it.qty) {
+                    errorOccurred = true;
+                    console.log(`Insufficient stock for ${p.name}`);
+                } else {
                     const lineTotal = p.price * it.qty;
+                    // Record the sale
                     db.run(`INSERT INTO sales (product_id, qty, total) VALUES (?,?,?)`, [it.product_id, it.qty, lineTotal]);
+                    // Subtract from stock
                     db.run(`UPDATE products SET stock = stock - ? WHERE id = ?`, [it.qty, it.product_id]);
+                }
+
+                // On the last item, decide to commit or rollback
+                if (index === items.length - 1) {
+                    if (errorOccurred) {
+                        db.run("ROLLBACK");
+                        res.status(400).json({ error: "Sale failed: Insufficient stock or invalid item." });
+                    } else {
+                        db.run("COMMIT");
+                        res.json({ success: true });
+                    }
                 }
             });
         });
-        db.run('SELECT 1', () => res.json({ success: true }));
     });
 });
 
@@ -169,16 +194,61 @@ app.get('/api/sales/history', auth, (req, res) => {
     });
 });
 
+app.get('/api/sales/grouped-history', auth, (req, res) => {
+    const query = `
+        SELECT 
+            created_at, 
+            COUNT(product_id) as item_count, 
+            SUM(total) as grand_total,
+            GROUP_CONCAT(p.name || ' (x' || s.qty || ')') as items_summary
+        FROM sales s 
+        JOIN products p ON s.product_id = p.id 
+        GROUP BY created_at 
+        ORDER BY created_at DESC`;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 app.get('/api/stats', auth, (req, res) => {
-    const summaryQuery = `SELECT COALESCE(SUM(s.total), 0) as revenue, COUNT(s.id) as total_sales, COALESCE(SUM((p.price - p.cost_price) * s.qty), 0) as profit FROM sales s JOIN products p ON s.product_id = p.id`;
-    const topItemsQuery = `SELECT p.name, SUM(s.qty) as sold FROM sales s JOIN products p ON s.product_id = p.id GROUP BY s.product_id ORDER BY sold DESC LIMIT 5`;
+    // This query calculates revenue, total transactions, and profit 
+    // based on (Selling Price - Cost Price) * Quantity sold.
+    const summaryQuery = `
+        SELECT 
+            COALESCE(SUM(s.total), 0) as revenue, 
+            COUNT(s.id) as total_sales, 
+            COALESCE(SUM((p.price - IFNULL(p.cost_price, 0)) * s.qty), 0) as profit 
+        FROM sales s 
+        JOIN products p ON s.product_id = p.id`;
+        
+    const topItemsQuery = `
+        SELECT p.name, SUM(s.qty) as sold 
+        FROM sales s 
+        JOIN products p ON s.product_id = p.id 
+        GROUP BY s.product_id 
+        ORDER BY sold DESC 
+        LIMIT 5`;
 
     db.get(summaryQuery, [], (err, summary) => {
         if (err) return res.status(500).json({ error: err.message });
         db.all(topItemsQuery, [], (err, topItems) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ revenue: summary.revenue, total_sales: summary.total_sales, profit: summary.profit, top_items: topItems || [] });
+            res.json({ 
+                revenue: summary.revenue, 
+                total_sales: summary.total_sales, 
+                profit: summary.profit, 
+                top_items: topItems || [] 
+            });
         });
+    });
+});
+
+app.get('/api/alerts/low-stock', auth, (req, res) => {
+    db.all(`SELECT name, stock FROM products WHERE stock <= 5`, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
     });
 });
 

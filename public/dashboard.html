@@ -7,7 +7,6 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-
     <link rel="stylesheet" href="styles.css" /> 
 </head>
 <body>
@@ -22,90 +21,124 @@
         <a href="#" id="logoutBtn">Logout</a>
     </nav>
 </header>
+
 <div class="dashboard-container">
-    <h1>DASHBOARD</h1>
+    <h1 style="margin-bottom: 20px;">DASHBOARD</h1>
     
-    <div class="dashboard-content">
-
-        <div class="card">
-        <h3><i class="fas fa-boxes"></i> Products List</h3>
-        <table class="data-table">
-        <thead>
-            <tr>
-                <th>Image</th>
-                <th>Product Name</th>
-                <th>Price</th>
-                <th>Stock Count</th>
-                <th>Product Status</th>
-            </tr>
-                </thead>
-                <tbody id="productsTableBody">
-                    </tbody>
-            </table>
-        </div>
-
-        <div class="card">
-            <h3><i class="fas fa-fast-forward"></i> Quick Actions</h3>
-            <div class="quick-actions-buttons">
-                <a href="payment.html" class="btn-primary"><i class="fas fa-cash-register "></i>Order Payment</a>
-                <a href="stats.html" class="btn-primary"><i class="fas fa-chart-line "></i>Statistics</a>
-                <a href="trans.html" class="btn-primary"><i class="fas fa-list "></i>Transaction History</a>
-            </div>
-                </div>
-        </div>
+    <div class="dashboard-content" style="display: flex; gap: 20px; align-items: flex-start;">
         
-    </div>
+        <div class="card" style="flex: 2; min-width: 0;">
+            <h3><i class="fas fa-boxes"></i> Products List</h3>
+            <div style="overflow-x: auto;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Product Name</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 300px;">
+            
+            <div class="card" id="lowStockCard" style="border-top: 5px solid var(--danger);">
+                <h3 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Low Stock Alerts</h3>
+                <div id="lowStockList">
+                    <p style="color: #a0aec0; text-align: center; padding: 10px;">All stock levels are healthy.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+                <div class="quick-actions-buttons" style="display: flex; flex-direction: column; gap: 12px;">
+                    <a href="payment.html" class="btn-primary" style="padding: 15px;"><i class="fas fa-cash-register"></i> Order Payment</a>
+                    <a href="stats.html" class="btn-primary" style="padding: 15px;"><i class="fas fa-chart-line"></i> Statistics</a>
+                    <a href="trans.html" class="btn-primary" style="padding: 15px;"><i class="fas fa-history"></i> Transaction History</a>
+                </div>
+            </div>
+
+        </div> </div>
 </div>
+
 <script>
-
 document.addEventListener('DOMContentLoaded', () => {
-    // token checker
     const token = localStorage.getItem('pos_token');
-    if (!token) {
-        location.href = 'login.html';
-        return;
-    }
+    if (!token) { location.href = 'login.html'; return; }
 
-    // log-out function
     document.getElementById('logoutBtn').addEventListener('click', (e) => {
         e.preventDefault();
         localStorage.removeItem('pos_token');
         location.href = 'login.html';
     });
 
-    const fetchProducts = async () => {
-    try {
-        const res = await fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
-        const products = await res.json();
-        const tbody = document.getElementById('productsTableBody');
-        tbody.innerHTML = ''; 
+    const refreshDashboard = async () => {
+        try {
+            const res = await fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
+            const products = await res.json();
+            
+            // 1. UPDATE PRODUCT TABLE
+            const tbody = document.getElementById('productsTableBody');
+            tbody.innerHTML = ''; 
 
-        products.forEach(p => {
-            const row = tbody.insertRow();
-            const imgUrl = p.photo_path || '/photos/default.png';
-            const status = p.stock <= 5 ? 'OUT OF STOCK' : 'OK';
-            const statusClass = p.stock <= 5 ? 'low' : 'ok';
+            products.forEach(p => {
+                const row = tbody.insertRow();
+                const imgUrl = p.photo_path || '/photos/default.png';
+                
+                let statusText = 'OK';
+                let statusClass = 'ok';
+                
+                if (p.stock === 0) {
+                    statusText = 'OUT OF STOCK';
+                    statusClass = 'low';
+                } else if (p.stock <= 5) {
+                    statusText = 'LOW STOCK';
+                    statusClass = 'warning';
+                }
 
-            // fix and max layout
-            row.innerHTML = `
-                <td style="padding: 15px;">
-                    <img src="${imgUrl}" onerror="this.src='/photos/default.png'" 
-                         style="width: 100px; height: 75px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                </td>
-                <td style="font-weight: 600; font-size: 1.1em;">${p.name}</td>
-                <td>₱${p.price.toFixed(2)}</td>
-                <td style="text-align: center;"><strong>${p.stock}</strong></td>
-                <td style="text-align: center;"><span class="status-badge ${statusClass}">${status}</span></td>
-            `;
-        });
-    } catch (error) {
-        console.error('Failed to fetch:', error);
-    }
-};
+                row.innerHTML = `
+                    <td style="padding: 12px 10px;">
+                        <img src="${imgUrl}" onerror="this.src='/photos/default.png'" 
+                             style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    </td>
+                    <td style="font-weight: 600; color: var(--accent);">${p.name}</td>
+                    <td style="text-align: center;">₱${p.price.toFixed(2)}</td>
+                    <td style="text-align: center;"><strong>${p.stock}</strong></td>
+                    <td style="text-align: center;"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+            });
 
-    fetchProducts();
+            // 2. UPDATE LOW STOCK ALERTS
+            const alertList = document.getElementById('lowStockList');
+            const lowItems = products.filter(p => p.stock <= 5);
+
+            if (lowItems.length > 0) {
+                alertList.innerHTML = lowItems.map(p => `
+                    <div class="alert-item ${p.stock === 0 ? 'critical' : ''}">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-size: 0.95rem; font-weight: 600;">${p.name}</span>
+                            <span class="stock-count-badge" style="width: fit-content;">${p.stock} left</span>
+                        </div>
+                        <a href="customize.html" class="restock-link">RESTOCK</a>
+                    </div>
+                `).join('');
+            } else {
+                alertList.innerHTML = '<p style="color: #a0aec0; text-align: center; padding: 20px;">All stock levels are healthy.</p>';
+            }
+
+        } catch (error) {
+            console.error('Dashboard Load Error:', error);
+        }
+    };
+
+    refreshDashboard();
 });
 </script>
-
 </body>
 </html>

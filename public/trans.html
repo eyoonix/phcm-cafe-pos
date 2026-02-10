@@ -17,43 +17,53 @@
 
 <div class="container">
     <h1><i class="fas fa-history"></i> Transaction History</h1>
-    <div class="card">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Date & Time</th>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody id="historyTableBody"></tbody>
-        </table>
-    </div>
+    <div id="historyContainer" class="history-list"></div>
+</div>
 </div>
 
 <script>
     const token = localStorage.getItem('pos_token');
     async function loadHistory() {
-        const res = await fetch('/api/sales/history', { 
-            headers: { 'Authorization': `Bearer ${token}` } 
+    const res = await fetch('/api/sales/grouped-history', { 
+        headers: { 'Authorization': `Bearer ${token}` } 
+    });
+    const history = await res.json();
+    const container = document.getElementById('historyContainer');
+    container.innerHTML = ''; 
+
+    history.forEach((group, index) => {
+        const date = new Date(group.created_at).toLocaleString('en-PH', {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-        const history = await res.json();
-        const tbody = document.getElementById('historyTableBody');
+
+        // Create a card div
+        const card = document.createElement('div');
+        card.className = "order-card"; 
         
-        history.forEach(trx => {
-            const row = tbody.insertRow();
-            // Format date to be readable (e.g., Dec 23, 2025)
-            const date = new Date(trx.created_at).toLocaleString();
-            
-            row.innerHTML = `
-                <td style="color #2d3748; font-weight:bold;">${date}</td>
-                <td><strong>${trx.product_name}</strong></td>
-                <td>${trx.qty}</td>
-                <td style="color: #2d3748; font-weight: bold;">₱${trx.total.toFixed(2)}</td>
-            `;
-        });
-    }
+        card.innerHTML = `
+            <details>
+                <summary>
+                    <div class="summary-content">
+                        <span class="order-id">Order #${history.length - index}</span>
+                        <span class="order-date">${date}</span>
+                        <span class="badge">${group.item_count} Items</span>
+                        <span class="order-total">₱${group.grand_total.toFixed(2)}</span>
+                        <i class="fas fa-chevron-down toggle-icon"></i>
+                    </div>
+                </summary>
+                <div class="order-details">
+                    <h5><i class="fas fa-list"></i> Items Bought</h5>
+                    <div class="breakdown-grid">
+                        ${group.items_summary.split(',').map(item => `
+                            <div class="breakdown-item">${item}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            </details>
+        `;
+        container.appendChild(card);
+    });
+}
     document.addEventListener('DOMContentLoaded', loadHistory);
 </script>
 </body>
