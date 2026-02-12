@@ -48,6 +48,44 @@
     </div>
 </div>
 
+<!-- ===== RECEIPT AREA ===== -->
+<div id="receiptArea" class="receipt-window" style="display:none;">
+  <div class="receipt-header">
+    <h3>PHCM CAFETERIA</h3>
+    <p id="receiptMeta"></p>
+  </div>
+
+  <div class="receipt-divider"></div>
+
+  <div id="receiptItems"></div>
+
+  <div class="receipt-divider"></div>
+
+  <div class="receipt-line bold">
+    <span>Total</span>
+    <span id="receiptTotal">₱0.00</span>
+  </div>
+
+  <div class="receipt-line">
+    <span>Cash</span>
+    <span id="receiptCash">₱0.00</span>
+  </div>
+
+  <div class="receipt-line">
+    <span>Change</span>
+    <span id="receiptChange">₱0.00</span>
+  </div>
+
+  <div class="receipt-divider"></div>
+
+  <div class="receipt-footer">
+    Thank you for purchasing!
+  </div>
+</div>
+
+<button id="printBtn" class="btn-primary" style="display:none; margin-top:10px;">
+  Print Receipt
+
 <script>
     let cart = [];
     let products = [];
@@ -169,6 +207,8 @@
             body: JSON.stringify({ items: cart, payment: cash })
         });
         alert("CUSTOMER PAYMENT SUCCESSFUL!");
+        const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱",""));
+        showReceipt(cart, total, cash);
         cart = [];
         document.getElementById('paymentInput').value = '';
         fetchProducts();
@@ -176,6 +216,49 @@
     };
 
     fetchProducts();
+
+    function peso(n) {
+  return "₱" + Number(n).toFixed(2);
+}
+
+function showReceipt(items, total, cash) {
+  const change = cash - total;
+
+  // Date + time
+  document.getElementById("receiptMeta").innerText =
+    new Date().toLocaleString();
+
+  // Items list
+  const receiptItems = document.getElementById("receiptItems");
+  receiptItems.innerHTML = "";
+
+  items.forEach(it => {
+  const p = products.find(prod => prod.id === it.product_id);
+
+  receiptItems.innerHTML += `
+    <div class="receipt-line">
+      <span>${p.name} x${it.qty}</span>
+      <span>${peso(p.price * it.qty)}</span>
+    </div>
+  `;
+});
+
+  // Totals
+  document.getElementById("receiptTotal").innerText = peso(total);
+  document.getElementById("receiptCash").innerText = peso(cash);
+  document.getElementById("receiptChange").innerText = peso(change);
+
+  // Show receipt + print button
+  document.getElementById("receiptArea").style.display = "block";
+  document.getElementById("printBtn").style.display = "inline-block";
+}
+
+// Print button
+document.getElementById("printBtn").addEventListener("click", () => {
+  window.print();
+});
+
 </script>
+</button>
 </body>
 </html>

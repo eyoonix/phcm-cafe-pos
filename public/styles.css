@@ -347,3 +347,24 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 .receipt-line { display: flex; justify-content: space-between; margin: 4px 0; font-size: 0.9rem; }
 .receipt-line.bold { font-weight: bold; font-size: 1.1rem; margin-top: 10px; }
 .receipt-footer { text-align: center; margin-top: 20px; font-size: 0.8rem; }
+
+/* ===== RECEIPT PRINT MODE ===== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #receiptArea, #receiptArea * {
+    visibility: visible;
+  }
+
+  #receiptArea {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  #printBtn {
+    display: none !important;
+  }
+}
