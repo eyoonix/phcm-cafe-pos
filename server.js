@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
 
 const SECRET = 'change_this_secret_in_prod';
 const app = express();
@@ -11,6 +12,10 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use('/', express.static('public'));
 app.use('/photos', express.static('photos'));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
 
 /* Database */
 const db = new sqlite3.Database('./pos.db');
@@ -261,4 +266,6 @@ app.get('/api/inventory/restock-history', auth, (req, res) => {
 });
 
 const PORT = process.env.PORT || 5500;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
