@@ -1,5 +1,40 @@
 /* public/styles.css */
 
+/* ===== MOBILE HEADER FIX ===== */
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+  }
+
+  .header-brand {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+    font-size: 1.2em;
+  }
+
+  .header-logo {
+    height: 60px; /* smaller logo on mobile */
+    margin-right: 0;
+  }
+
+  .header-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .header-nav a {
+    margin-left: 0;          /* remove left margin so it won't push */
+    padding: 10px 14px;      /* comfortable touch size */
+  }
+}
+
 /* --- RESET & GLOBAL STYLES --- */
 :root {
     --accent: #110361;
