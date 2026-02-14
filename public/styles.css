@@ -337,10 +337,10 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 
 /* --- THERMAL RECEIPT (PRINT) --- */
 .receipt-window {
-    width: 300px;
-    padding: 20px;
-    background: #fff;
-    font-family: 'Courier New', Courier, monospace;
+  width: 80mm;
+  padding: 10px;
+  background: #fff;
+  font-family: 'Courier New', Courier, monospace;
 }
 .receipt-header { text-align: center; margin-bottom: 15px; }
 .receipt-divider { border-top: 2px dashed #000; margin: 10px 0; }
@@ -348,23 +348,135 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 .receipt-line.bold { font-weight: bold; font-size: 1.1rem; margin-top: 10px; }
 .receipt-footer { text-align: center; margin-top: 20px; font-size: 0.8rem; }
 
-/* ===== RECEIPT PRINT MODE ===== */
+  .order-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.order-details {
+  position: relative;
+}
+
+.order-actions button {
+  margin-left: auto;
+}
+
 @media print {
   body * {
     visibility: hidden;
   }
 
-  #receiptArea, #receiptArea * {
+  #printableReceipt, #printableReceipt * {
     visibility: visible;
   }
 
-  #receiptArea {
+  #printableReceipt {
     position: absolute;
     top: 0;
     left: 0;
+    width: 80mm;
+  }
+}
+
+/* ===== THERMAL RECEIPT FINAL PRINT FIX ===== */
+@media print {
+  /* Make the "paper" thermal size */
+  @page {
+    size: 80mm auto;
+    margin: 0;
   }
 
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* Hide everything except the receipt */
+  body * {
+    display: none !important;
+  }
+
+  /* Show only printable receipt */
+  #printableReceipt {
+    display: block !important;
+    width: 80mm !important;
+    margin: 0 auto !important;  /* centers in preview */
+    padding: 10px !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+
+  /* Optional: tighter lines for thermal style */
+  #printableReceipt .receipt-line {
+    font-size: 12px !important;
+ }
+ /* ===== THERMAL PRINT SETTINGS (PAYMENT RECEIPT) ===== */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  html, body {
+    width: 80mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+  }
+
+  /* hide everything except receipt */
+  body * {
+    visibility: hidden;
+  }
+
+  #printableReceipt, #printableReceipt * {
+    visibility: visible;
+  }
+
+  #printableReceipt {
+    display: block !important;
+    width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+}
+
+@media print {
+
+  /* hide everything */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* show only receipt */
+  #receiptArea, #receiptArea * {
+    visibility: visible !important;
+  }
+
+  /* force receipt to top center */
+  #receiptArea {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80mm;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* remove page margins */
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  /* hide print button */
   #printBtn {
     display: none !important;
   }
+}
 }

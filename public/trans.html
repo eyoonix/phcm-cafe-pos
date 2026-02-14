@@ -1,70 +1,198 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>PHCM POS | Transactions</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <meta charset="utf-8" />
+  <title>PHCM POS | Transactions</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
 <header class="header">
-    <div class="header-brand">
-        <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" /> 
-        PHCM CAFETERIA
-    </div>
-    <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
+  <div class="header-brand">
+    <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
+    PHCM CAFETERIA
+  </div>
+  <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
 </header>
 
 <div class="container">
-    <h1><i class="fas fa-history"></i> Transaction History</h1>
-    <div id="historyContainer" class="history-list"></div>
-</div>
+  <h1><i class="fas fa-history"></i> Transaction History</h1>
+  <div id="historyContainer" class="history-list"></div>
 </div>
 
 <script>
-    const token = localStorage.getItem('pos_token');
-    async function loadHistory() {
-    const res = await fetch('/api/sales/grouped-history', { 
-        headers: { 'Authorization': `Bearer ${token}` } 
+  const token = localStorage.getItem("pos_token");
+
+  function peso(n) { return "₱" + Number(n).toFixed(2); }
+
+  async function loadHistory() {
+    const res = await fetch("/api/sales/transactions", {
+      headers: { Authorization: `Bearer ${token}` }
     });
+
     const history = await res.json();
-    const container = document.getElementById('historyContainer');
-    container.innerHTML = ''; 
+    const container = document.getElementById("historyContainer");
+    container.innerHTML = "";
 
-    history.forEach((group, index) => {
-        const date = new Date(group.created_at).toLocaleString('en-PH', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+    history.forEach((tx) => {
+      const date = new Date(tx.created_at.replace(" ", "T")).toLocaleString("en-PH", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
 
-        // Create a card div
-        const card = document.createElement('div');
-        card.className = "order-card"; 
-        
-        card.innerHTML = `
-            <details>
-                <summary>
-                    <div class="summary-content">
-                        <span class="order-id">Order #${history.length - index}</span>
-                        <span class="order-date">${date}</span>
-                        <span class="badge">${group.item_count} Items</span>
-                        <span class="order-total">₱${group.grand_total.toFixed(2)}</span>
-                        <i class="fas fa-chevron-down toggle-icon"></i>
-                    </div>
-                </summary>
-                <div class="order-details">
-                    <h5><i class="fas fa-list"></i> Items Bought</h5>
-                    <div class="breakdown-grid">
-                        ${group.items_summary.split(',').map(item => `
-                            <div class="breakdown-item">${item}</div>
-                        `).join('')}
-                    </div>
-                </div>
-            </details>
-        `;
-        container.appendChild(card);
+      const card = document.createElement("div");
+      card.className = "order-card";
+
+      card.innerHTML = `
+        <details>
+          <summary>
+            <div class="summary-content">
+              <span class="order-id">Order #${String(tx.transaction_id).padStart(3,"0")}</span>
+              <span class="order-date">${date}</span>
+              <span class="badge">${tx.item_count} Items</span>
+              <span class="order-total">${peso(tx.grand_total)}</span>
+              <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+          </summary>
+
+          <div class="order-details">
+            <h5><i class="fas fa-list"></i> Items Bought</h5>
+
+            <div class="breakdown-grid">
+              ${(tx.items_summary || "").split(",").filter(Boolean).map(item => `
+                <div class="breakdown-item">${item}</div>
+              `).join("")}
+            </div>
+
+            <div class="order-actions">
+              <button class="btn-primary print-btn"
+                data-transaction-id="${tx.transaction_id}">
+                <i class="fas fa-print"></i> Print Receipt
+              </button>
+            </div>
+          </div>
+        </details>
+      `;
+
+      container.appendChild(card);
     });
-}
-    document.addEventListener('DOMContentLoaded', loadHistory);
+
+    container.querySelectorAll(".print-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const transactionId = btn.dataset.transactionId;
+        printReceiptFromHistory(transactionId);
+      });
+    });
+  }
+
+  async function printReceiptFromHistory(transactionId) {
+    try {
+      const res = await fetch(`/api/sales/receipt?transaction_id=${encodeURIComponent(transactionId)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        alert("Receipt error: " + data.error);
+        return;
+      }
+
+      const receiptHTML = `
+        <div class="receipt-window">
+          <div class="receipt-header">
+            <h1 style="margin:0;">PHCM CAFETERIA</h1>
+            <div style="font-size:12px;margin-top:6px;">
+              Transaction #${String(data.transaction_id).padStart(4,"0")}<br/>
+              ${new Date(data.created_at.replace(" ", "T")).toLocaleString("en-PH")}
+            </div>
+          </div>
+
+          <div class="receipt-divider"></div>
+
+          ${data.items.map(it => `
+            <div class="receipt-line">
+              <span>${it.name} x${it.qty}</span>
+              <span>${peso(it.line_total)}</span>
+            </div>
+            <div class="receipt-line" style="font-size:11px;">
+              <span>@ ${peso(it.unit_price)} each</span>
+              <span></span>
+            </div>
+          `).join("")}
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-line bold">
+            <span>Total</span>
+            <span>${peso(data.grand_total)}</span>
+          </div>
+
+          <div class="receipt-divider"></div>
+          <div class="receipt-footer">Thank you for purchasing!</div>
+        </div>
+      `;
+
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+
+      const printCSS = `
+        @page { size: 80mm 100mm; margin: 0; }
+        html, body { margin: 0; padding: 0; width: 80mm; background: #fff; }
+        .receipt-window {
+          width: 80mm;
+          padding: 8mm 6mm;
+          font-family: "Courier New", monospace;
+          font-size: 12px;
+          color: #000;
+          box-sizing: border-box;
+        }
+        .receipt-header { text-align: center; margin-bottom: 10px; }
+        .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
+        .receipt-line { display: flex; justify-content: space-between; margin: 3px 0; }
+        .receipt-line.bold { font-weight: bold; margin-top: 8px; }
+        .receipt-footer { text-align: center; margin-top: 10px; font-size: 11px; }
+      `;
+
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Receipt</title>
+            <style>${printCSS}</style>
+          </head>
+          <body>${receiptHTML}</body>
+        </html>
+      `);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(iframe), 500);
+      }, 300);
+
+    } catch (err) {
+      console.error(err);
+      alert("Print failed.");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadHistory);
 </script>
+
 </body>
 </html>

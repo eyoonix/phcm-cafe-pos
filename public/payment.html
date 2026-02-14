@@ -1,264 +1,321 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <title>PHCM POS | Cart</title>
-    <link rel="stylesheet" href="styles.css" /> 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <meta charset="utf-8" />
+  <title>PHCM POS | Cart</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
 
 <header class="header">
-    <div class="header-brand">
-        <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" /> 
-        PHCM CAFETERIA
-    </div>
-    <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
+  <div class="header-brand">
+    <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
+    PHCM CAFETERIA
+  </div>
+  <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
 </header>
 
 <div class="payment-layout">
-    <div class="card" style="flex:2; overflow-y:auto;">
-        <h3><i class="fas fa-utensils"></i> Menu Items</h3>
-        <div id="productGrid"></div>
+  <div class="card" style="flex:2; overflow-y:auto;">
+    <h3><i class="fas fa-utensils"></i> Menu Items</h3>
+    <div id="productGrid"></div>
+  </div>
+
+  <div class="card cart-panel">
+    <h3><i class="fa fa-shopping-cart"></i> Cart</h3>
+    <div class="cart-list" id="cartList"></div>
+    <div class="cart-total">Total: <span id="totalAmount">₱0.00</span></div>
+
+    <div style="margin-top:15px;">
+      <label>Cash Received</label>
+      <input type="number" id="paymentInput" class="input" placeholder="₱0.00">
     </div>
 
-    <div class="card cart-panel">
-        <h3><i class="fa fa-shopping-cart"></i> Cart</h3>
-        <div class="cart-list" id="cartList"></div>
-        <div class="cart-total">Total: <span id="totalAmount">₱0.00</span></div>
-        
-        <div style="margin-top:15px;">
-        <label>Cash Received</label>
-        <input type="number" id="paymentInput" class="input" placeholder="₱0.00">
-    </div>
-
-    <div class="quick-cash-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px;">
-       <button class="btn-secondary" onclick="setCash(20)">₱20</button>
-       <button class="btn-secondary" onclick="setCash(50)">₱50</button>
-       <button class="btn-secondary" onclick="setCash(100)">₱100</button>
+    <div class="quick-cash-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; margin-top:10px;">
+      <button class="btn-secondary" onclick="setCash(20)">₱20</button>
+      <button class="btn-secondary" onclick="setCash(50)">₱50</button>
+      <button class="btn-secondary" onclick="setCash(100)">₱100</button>
       <button class="btn-secondary" onclick="setCash(200)">₱200</button>
-        <button class="btn-secondary" onclick="setCash(500)">₱500</button>
-        <button class="btn-secondary" onclick="setCash(1000)">₱1000</button>
-        <button class="btn-secondary" style="grid-column: span 3; background-color: #38a169; color: white;" onclick="setExact()">EXACT AMOUNT</button>
+      <button class="btn-secondary" onclick="setCash(500)">₱500</button>
+      <button class="btn-secondary" onclick="setCash(1000)">₱1000</button>
+      <button class="btn-secondary" style="grid-column: span 3; background-color:#38a169; color:white;" onclick="setExact()">
+        EXACT AMOUNT
+      </button>
     </div>
 
     <div style="margin:10px 0;">Change: <span id="changeDue">₱0.00</span></div>
-        
-        <button id="processBtn" class="btn-primary" style="width:100%" disabled>Complete Sale</button>
-    </div>
+
+    <button id="processBtn" class="btn-primary" style="width:100%" disabled>Complete Sale</button>
+  </div>
 </div>
 
-<!-- ===== RECEIPT AREA ===== -->
-<div id="receiptArea" class="receipt-window" style="display:none;">
-  <div class="receipt-header">
-    <h3>PHCM CAFETERIA</h3>
-    <p id="receiptMeta"></p>
+<!-- RECEIPT PREVIEW -->
+<div id="receiptArea" class="receipt-window" style="display:none; margin: 25px;">
+  <div class="receipt-header" style="text-align:center;">
+    <h3 style="margin:0;">PHCM CAFETERIA</h3>
+    <div style="font-size:12px; margin-top:6px;">
+      <div id="receiptTxn">Transaction #0000</div>
+      <div id="receiptMeta"></div>
+    </div>
   </div>
 
   <div class="receipt-divider"></div>
-
   <div id="receiptItems"></div>
-
   <div class="receipt-divider"></div>
 
   <div class="receipt-line bold">
     <span>Total</span>
     <span id="receiptTotal">₱0.00</span>
   </div>
-
   <div class="receipt-line">
     <span>Cash</span>
     <span id="receiptCash">₱0.00</span>
   </div>
-
   <div class="receipt-line">
     <span>Change</span>
     <span id="receiptChange">₱0.00</span>
   </div>
 
   <div class="receipt-divider"></div>
-
-  <div class="receipt-footer">
-    Thank you for purchasing!
-  </div>
+  <div class="receipt-footer" style="text-align:center;">Thank you for purchasing!</div>
 </div>
 
-<button id="printBtn" class="btn-primary" style="display:none; margin-top:10px;">
-  Print Receipt
+<button id="printBtn" class="btn-primary" style="display:none; margin: 0 25px 25px;">
+  <i class="fas fa-print"></i> Print Receipt
+</button>
 
 <script>
-    let cart = [];
-    let products = [];
-    const token = localStorage.getItem('pos_token');
+  let cart = [];
+  let products = [];
+  const token = localStorage.getItem("pos_token");
 
-    async function fetchProducts() {
-        const res = await fetch('/api/products', { headers: {'Authorization': `Bearer ${token}`} });
-        products = await res.json();
-        const grid = document.getElementById('productGrid');
-        grid.innerHTML = '';
-        
-        products.forEach(p => {
-            const isOutOfStock = p.stock <= 0;
-            const div = document.createElement('div');
-            
-            div.className = `product-btn ${isOutOfStock ? 'disabled-item' : ''}`;
-            
-            div.innerHTML = `
-                <img src="${p.photo_path || '/photos/default.png'}" onerror="this.src='/photos/default.png'" 
-                     style="${isOutOfStock ? 'filter: grayscale(100%); opacity: 0.5;' : ''}">
-                <div class="info">
-                    <strong>${p.name}</strong><br>
-                    <small>${isOutOfStock ? '<span style="color:red; font-weight:bold;">OUT OF STOCK</span>' : `₱${p.price.toFixed(2)} | Stock: ${p.stock}`}</small>
-                </div>
-            `;
+  function peso(n) { return "₱" + Number(n).toFixed(2); }
 
-            // Only allow clicking if there is stock
-            div.onclick = () => {
-                if (isOutOfStock) {
-                    alert("This item is currently out of stock!");
-                    return;
-                }
-                addToCart(p);
-            };
-            grid.appendChild(div);
-        });
-    }
+  async function fetchProducts() {
+    const res = await fetch("/api/products", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    products = await res.json();
 
-    // Function for Quick Cash buttons
-    function setCash(amount) {
-    const input = document.getElementById('paymentInput');
-    input.value = amount;
-    updateChange(); // Trigger the calculation
-    }
+    const grid = document.getElementById("productGrid");
+    grid.innerHTML = "";
 
-    // Function for the Exact Amount button
-        function setExact() {
-    const total = parseFloat(document.getElementById('totalAmount').innerText.replace('₱', ''));
-    const input = document.getElementById('paymentInput');
-    
-    if (total > 0) {
-        input.value = total.toFixed(2);
-        updateChange();
-    } else {
-        alert("Cart is empty!");
-    }
-    }
+    products.forEach(p => {
+      const isOutOfStock = p.stock <= 0;
+      const div = document.createElement("div");
+      div.className = `product-btn ${isOutOfStock ? "disabled-item" : ""}`;
 
-    // --- NEW FUNCTION ADDED HERE ---
-    function addToCart(p) {
-        const itemInCart = cart.find(i => i.product_id === p.id);
-        
-        if (itemInCart) {
-            // Check if adding one more exceeds available stock
-            if (itemInCart.qty >= p.stock) {
-                alert(`Sorry, only ${p.stock} units of ${p.name} are available.`);
-                return;
+      div.innerHTML = `
+        <img src="${p.photo_path || "/photos/default.png"}"
+             onerror="this.src='/photos/default.png'"
+             style="${isOutOfStock ? "filter: grayscale(100%); opacity: 0.5;" : ""}">
+        <div class="info">
+          <strong>${p.name}</strong><br>
+          <small>
+            ${isOutOfStock
+              ? '<span style="color:red; font-weight:bold;">OUT OF STOCK</span>'
+              : `₱${p.price.toFixed(2)} | Stock: ${p.stock}`
             }
-            itemInCart.qty++;
-        } else {
-            cart.push({product_id: p.id, qty: 1});
-        }
-        renderCart();
+          </small>
+        </div>
+      `;
+
+      div.onclick = () => {
+        if (isOutOfStock) return alert("This item is currently out of stock!");
+        addToCart(p);
+      };
+
+      grid.appendChild(div);
+    });
+  }
+
+  function addToCart(p) {
+    const itemInCart = cart.find(i => i.product_id === p.id);
+
+    if (itemInCart) {
+      if (itemInCart.qty >= p.stock) {
+        alert(`Sorry, only ${p.stock} units of ${p.name} are available.`);
+        return;
+      }
+      itemInCart.qty++;
+    } else {
+      cart.push({ product_id: p.id, qty: 1 });
     }
-    // -------------------------------
+    renderCart();
+  }
 
-    function renderCart() {
-        const list = document.getElementById('cartList');
-        const totalSpan = document.getElementById('totalAmount');
-        let total = 0;
-    
-        const itemsHtml = cart.map(item => {
-            const p = products.find(prod => prod.id === item.product_id);
-            const subtotal = p.price * item.qty;
-            total += subtotal;
-            return `
-                <div class="cart-item">
-                    <span>${p.name} (x${item.qty})</span>
-                    <span>₱${subtotal.toFixed(2)} 
-                        <i class="fas fa-trash" style="color:#e53e3e; cursor:pointer; margin-left:10px;" onclick="removeItem(${p.id})"></i>
-                    </span>
-                </div>`;
-        }).join('');
+  function removeItem(id) {
+    cart = cart.filter(i => i.product_id !== id);
+    renderCart();
+  }
 
-        list.innerHTML = itemsHtml;
-        totalSpan.innerText = '₱' + total.toFixed(2);
-        updateChange();
+  function renderCart() {
+    const list = document.getElementById("cartList");
+    let total = 0;
+
+    list.innerHTML = cart.map(item => {
+      const p = products.find(prod => prod.id === item.product_id);
+      const subtotal = p.price * item.qty;
+      total += subtotal;
+
+      return `
+        <div class="cart-item">
+          <span>${p.name} (x${item.qty})</span>
+          <span>${peso(subtotal)}
+            <i class="fas fa-trash" style="color:#e53e3e; cursor:pointer; margin-left:10px;" onclick="removeItem(${p.id})"></i>
+          </span>
+        </div>
+      `;
+    }).join("");
+
+    document.getElementById("totalAmount").innerText = peso(total);
+    updateChange();
+  }
+
+  function updateChange() {
+    const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱","")) || 0;
+    const cash = parseFloat(document.getElementById("paymentInput").value) || 0;
+    const change = cash - total;
+
+    document.getElementById("changeDue").innerText = peso(change > 0 ? change : 0);
+    document.getElementById("processBtn").disabled = (total === 0 || cash < total);
+  }
+
+  function setCash(amount) {
+    document.getElementById("paymentInput").value = amount;
+    updateChange();
+  }
+
+  function setExact() {
+    const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱","")) || 0;
+    if (total <= 0) return alert("Cart is empty!");
+    document.getElementById("paymentInput").value = total.toFixed(2);
+    updateChange();
+  }
+
+  function showReceipt(items, total, cash, transactionId, createdAt) {
+    const change = cash - total;
+
+    document.getElementById("receiptTxn").innerText =
+      `Transaction #${String(transactionId).padStart(4, "0")}`;
+
+    document.getElementById("receiptMeta").innerText =
+      new Date(createdAt.replace(" ", "T")).toLocaleString();
+
+    const receiptItems = document.getElementById("receiptItems");
+    receiptItems.innerHTML = "";
+
+    items.forEach(it => {
+      const p = products.find(prod => prod.id === it.product_id);
+      receiptItems.innerHTML += `
+        <div class="receipt-line">
+          <span>${p.name} x${it.qty}</span>
+          <span>${peso(p.price * it.qty)}</span>
+        </div>
+        <div class="receipt-line" style="font-size:11px;">
+          <span>@ ${peso(p.price)} each</span>
+          <span></span>
+        </div>
+      `;
+    });
+
+    document.getElementById("receiptTotal").innerText = peso(total);
+    document.getElementById("receiptCash").innerText = peso(cash);
+    document.getElementById("receiptChange").innerText = peso(change);
+
+    document.getElementById("receiptArea").style.display = "block";
+    document.getElementById("printBtn").style.display = "inline-flex";
+  }
+
+  async function thermalPrintReceipt() {
+    const receipt = document.getElementById("receiptArea");
+    if (!receipt) return alert("Receipt not found.");
+
+    const printCSS = `
+      @page { size: 80mm 100mm; margin: 0; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #000;
+        background: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .receipt-window {
+        width: 80mm;
+        box-sizing: border-box;
+        padding: 8mm 6mm;
+      }
+      .receipt-divider { border-top: 2px dashed #000; margin: 6px 0; }
+      .receipt-line { display:flex; justify-content:space-between; margin:2px 0; }
+      .receipt-line.bold { font-weight:bold; margin-top:6px; }
+    `;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <html>
+        <head><meta charset="utf-8"><title>Receipt</title><style>${printCSS}</style></head>
+        <body>${receipt.outerHTML}</body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => document.body.removeChild(iframe), 500);
+    }, 300);
+  }
+
+  document.getElementById("paymentInput").addEventListener("input", updateChange);
+
+  document.getElementById("processBtn").onclick = async () => {
+    const cash = parseFloat(document.getElementById("paymentInput").value) || 0;
+    const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱","")) || 0;
+
+    const response = await fetch("/api/sales", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ items: cart, payment: cash })
+    });
+
+    const result = await response.json();
+
+    if (result.error) {
+      alert(result.error);
+      return;
     }
 
-    function removeItem(id) {
-        cart = cart.filter(i => i.product_id !== id);
-        renderCart();
-    }
+    alert("CUSTOMER PAYMENT SUCCESSFUL!");
 
-    function updateChange() {
-        const total = parseFloat(document.getElementById('totalAmount').innerText.replace('₱',''));
-        const cash = parseFloat(document.getElementById('paymentInput').value) || 0;
-        const change = cash - total;
-        document.getElementById('changeDue').innerText = '₱' + (change > 0 ? change.toFixed(2) : '0.00');
-        document.getElementById('processBtn').disabled = (total === 0 || cash < total);
-    }
+    showReceipt(cart, total, cash, result.transaction_id, result.created_at);
 
-    document.getElementById('paymentInput').oninput = updateChange;
-    document.getElementById('processBtn').onclick = async () => {
-        const cash = parseFloat(document.getElementById('paymentInput').value);
-        await fetch('/api/sales', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-            body: JSON.stringify({ items: cart, payment: cash })
-        });
-        alert("CUSTOMER PAYMENT SUCCESSFUL!");
-        const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱",""));
-        showReceipt(cart, total, cash);
-        cart = [];
-        document.getElementById('paymentInput').value = '';
-        fetchProducts();
-        renderCart();
-    };
+    cart = [];
+    document.getElementById("paymentInput").value = "";
+    await fetchProducts();
+    renderCart();
+  };
 
-    fetchProducts();
+  document.getElementById("printBtn").addEventListener("click", thermalPrintReceipt);
 
-    function peso(n) {
-  return "₱" + Number(n).toFixed(2);
-}
-
-function showReceipt(items, total, cash) {
-  const change = cash - total;
-
-  // Date + time
-  document.getElementById("receiptMeta").innerText =
-    new Date().toLocaleString();
-
-  // Items list
-  const receiptItems = document.getElementById("receiptItems");
-  receiptItems.innerHTML = "";
-
-  items.forEach(it => {
-  const p = products.find(prod => prod.id === it.product_id);
-
-  receiptItems.innerHTML += `
-    <div class="receipt-line">
-      <span>${p.name} x${it.qty}</span>
-      <span>${peso(p.price * it.qty)}</span>
-    </div>
-  `;
-});
-
-  // Totals
-  document.getElementById("receiptTotal").innerText = peso(total);
-  document.getElementById("receiptCash").innerText = peso(cash);
-  document.getElementById("receiptChange").innerText = peso(change);
-
-  // Show receipt + print button
-  document.getElementById("receiptArea").style.display = "block";
-  document.getElementById("printBtn").style.display = "inline-block";
-}
-
-// Print button
-document.getElementById("printBtn").addEventListener("click", () => {
-  window.print();
-});
-
+  fetchProducts();
 </script>
-</button>
+
 </body>
 </html>
