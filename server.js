@@ -53,7 +53,7 @@ db.serialize(() => {
     product_id INTEGER,
     qty INTEGER,
     total REAL,
-    created_at DATETIME DEFAULT (datetime('now','localtime')),
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
     FOREIGN KEY(product_id) REFERENCES products(id),
     FOREIGN KEY(transaction_id) REFERENCES transactions(id)
   )`);
@@ -67,7 +67,7 @@ db.serialize(() => {
     product_id INTEGER,
     qty_added INTEGER,
     cost_at_time REAL,
-    created_at DATETIME DEFAULT (datetime('now','localtime')),
+    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
     FOREIGN KEY(product_id) REFERENCES products(id)
   )`);
 
