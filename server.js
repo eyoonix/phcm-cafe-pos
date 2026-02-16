@@ -29,7 +29,7 @@ function manilaNowSQL() {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false
+    hour12: true
   }).formatToParts(new Date());
 
   const get = (t) => parts.find(p => p.type === t)?.value || "";
