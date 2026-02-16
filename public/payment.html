@@ -209,15 +209,16 @@
     items.forEach(it => {
       const p = products.find(prod => prod.id === it.product_id);
       receiptItems.innerHTML += `
-        <div class="receipt-line">
-          <span>${p.name} x${it.qty}</span>
-          <span>${peso(p.price * it.qty)}</span>
-        </div>
-        <div class="receipt-line" style="font-size:11px;">
-          <span>@ ${peso(p.price)} each</span>
-          <span></span>
-        </div>
+      <div class="receipt-line">
+        <span>${p.name}</span>
+        <span>x${it.qty}</span>
+      </div>
+      <div class="receipt-line">
+        <span>@ ${peso(p.price)}</span>
+        <span>${peso(p.price * it.qty)}</span>
+      </div>
       `;
+
     });
 
     document.getElementById("receiptTotal").innerText = peso(total);
@@ -233,34 +234,55 @@
     if (!receipt) return alert("Receipt not found.");
 
     const printCSS = `
-    @page {
-    size: 58mm auto;
-    margin: 0;
-    }
-
-    html, body {
-    width: 58mm;
-    margin: 0;
-    padding: 0;
+@page {
+  size: 58mm auto;
+  margin: 0;
 }
-      body {
-        font-family: "Courier New", monospace;
-        font-size: 12px;
-        color: #000;
-        background: #fff;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-      }
-      .receipt-window {
-        width: 80mm;
-        box-sizing: border-box;
-        padding: 8mm 6mm;
-      }
-      .receipt-divider { border-top: 2px dashed #000; margin: 6px 0; }
-      .receipt-line { display:flex; justify-content:space-between; margin:2px 0; }
-      .receipt-line.bold { font-weight:bold; margin-top:6px; }
-    `;
+
+html, body {
+  width: 58mm;
+  margin: 0;
+  padding: 0;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: #000;
+  background: #fff;
+}
+
+.receipt-window {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4mm 3mm;
+}
+
+.receipt-header {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.receipt-divider {
+  border-top: 1px dashed #000;
+  margin: 5px 0;
+}
+
+.receipt-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 0;
+}
+
+.receipt-line.bold {
+  font-weight: bold;
+}
+
+.receipt-footer {
+  text-align: center;
+  margin-top: 6px;
+  font-size: 10px;
+}
+`;
+
 
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
