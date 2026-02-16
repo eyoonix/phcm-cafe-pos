@@ -18,6 +18,24 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+/* ✅ Helper: Always return PH time (Asia/Manila) formatted for SQLite */
+function manilaNowSQL() {
+  // returns "YYYY-MM-DD HH:mm:ss" in Asia/Manila
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+
+  const get = (t) => parts.find(p => p.type === t)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 /* Database */
 const db = new sqlite3.Database('./pos.db');
 
@@ -37,40 +55,38 @@ db.serialize(() => {
     photo_path TEXT
   )`);
 
-  // ✅ NEW: Transactions table (1 row = 1 order)
+  // ✅ Transactions table (1 row = 1 order)
   db.run(`CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     grand_total REAL DEFAULT 0,
     cash REAL DEFAULT 0,
     change REAL DEFAULT 0,
-    created_at DATETIME DEFAULT (datetime('now','localtime'))
+    created_at TEXT
   )`);
 
-  // Sales lines (each row = item in a transaction)
+  // ✅ Sales lines (each row = item in a transaction)
   db.run(`CREATE TABLE IF NOT EXISTS sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     transaction_id INTEGER,
     product_id INTEGER,
     qty INTEGER,
     total REAL,
-    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
+    created_at TEXT,
     FOREIGN KEY(product_id) REFERENCES products(id),
     FOREIGN KEY(transaction_id) REFERENCES transactions(id)
   )`);
 
-  // In case you had an old sales table without transaction_id, try to add it (ignore error if already exists)
-  db.run(`ALTER TABLE sales ADD COLUMN transaction_id INTEGER`, () => {});
-
-  // Restock Logs
+  // ✅ Restock Logs
   db.run(`CREATE TABLE IF NOT EXISTS restock_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id INTEGER,
     qty_added INTEGER,
     cost_at_time REAL,
-    created_at DATETIME DEFAULT (datetime('now', '+8 hours')),
+    created_at TEXT,
     FOREIGN KEY(product_id) REFERENCES products(id)
   )`);
 
+  // Seed user
   db.get(`SELECT COUNT(*) as c FROM users`, (err, row) => {
     if (!err && row.c === 0) {
       const hashed = bcrypt.hashSync('phcm123', 8);
@@ -78,6 +94,7 @@ db.serialize(() => {
     }
   });
 
+  // Seed products
   db.get(`SELECT COUNT(*) as c FROM products`, (err, row) => {
     if (!err && row.c === 0) {
       const stmt = db.prepare(`INSERT INTO products (name, price, stock, photo_path) VALUES (?,?,?,?)`);
@@ -91,10 +108,12 @@ db.serialize(() => {
   });
 });
 
+/* Auth Middleware */
 const auth = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ error: "Access denied." });
+
   jwt.verify(token, SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: "Invalid token." });
     req.user = user;
@@ -102,11 +121,13 @@ const auth = (req, res, next) => {
   });
 };
 
+/* Login */
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, user) => {
     if (err || !user) return res.status(401).json({ error: 'Invalid credentials' });
     if (!bcrypt.compareSync(password, user.password)) return res.status(401).json({ error: 'Invalid credentials' });
+
     const token = jwt.sign({ id: user.id, username: user.username }, SECRET, { expiresIn: '8h' });
     res.json({ token, username: user.username });
   });
@@ -150,9 +171,10 @@ app.put('/api/products/:id', auth, (req, res) => {
         if (err2) return res.status(500).json({ error: err2.message });
 
         if (addedQty > 0) {
+          const nowPH = manilaNowSQL();
           db.run(
-            `INSERT INTO restock_logs (product_id, qty_added, cost_at_time) VALUES (?,?,?)`,
-            [id, addedQty, cost_price]
+            `INSERT INTO restock_logs (product_id, qty_added, cost_at_time, created_at) VALUES (?,?,?,?)`,
+            [id, addedQty, cost_price, nowPH]
           );
         }
         res.json({ success: true });
@@ -172,7 +194,7 @@ app.delete('/api/products/:id', auth, (req, res) => {
 // SALES / TRANSACTIONS
 // =================================================================
 
-// ✅ POST SALE: creates 1 transaction id, then inserts line items into sales
+// ✅ POST SALE: creates 1 transaction, inserts line items, all share same created_at (PH)
 app.post('/api/sales', auth, (req, res) => {
   const { items, payment } = req.body;
 
@@ -180,17 +202,18 @@ app.post('/api/sales', auth, (req, res) => {
     return res.status(400).json({ error: 'No items in cart' });
   }
 
+  const createdAt = manilaNowSQL(); // ✅ ONE timestamp for whole transaction (PH time)
+
   db.serialize(() => {
     db.run("BEGIN TRANSACTION");
 
-    // 1) compute total first (we'll also validate stock)
     let grandTotal = 0;
 
     const validateAndCompute = (idx) => {
       if (idx >= items.length) return createTransactionRow();
 
       const it = items[idx];
-      if (!it || !it.product_id || !it.qty) {
+      if (!it || typeof it.product_id === "undefined" || typeof it.qty === "undefined") {
         db.run("ROLLBACK");
         return res.status(400).json({ error: "Invalid cart item." });
       }
@@ -220,8 +243,8 @@ app.post('/api/sales', auth, (req, res) => {
       }
 
       db.run(
-        `INSERT INTO transactions (grand_total, cash, change) VALUES (?,?,?)`,
-        [grandTotal, cash, change],
+        `INSERT INTO transactions (grand_total, cash, change, created_at) VALUES (?,?,?,?)`,
+        [grandTotal, cash, change, createdAt],
         function (err) {
           if (err) {
             db.run("ROLLBACK");
@@ -229,8 +252,6 @@ app.post('/api/sales', auth, (req, res) => {
           }
 
           const transactionId = this.lastID;
-
-          // 2) insert sales lines + deduct stock
           insertLines(transactionId, 0);
         }
       );
@@ -238,25 +259,17 @@ app.post('/api/sales', auth, (req, res) => {
 
     const insertLines = (transactionId, idx) => {
       if (idx >= items.length) {
-        // get created_at of this transaction and commit
-        db.get(`SELECT created_at FROM transactions WHERE id = ?`, [transactionId], (err, row) => {
-          if (err || !row) {
+        db.run("COMMIT", (err2) => {
+          if (err2) {
             db.run("ROLLBACK");
-            return res.status(500).json({ error: "Transaction created but timestamp missing." });
+            return res.status(500).json({ error: "Commit failed." });
           }
 
-          db.run("COMMIT", (err2) => {
-            if (err2) {
-              db.run("ROLLBACK");
-              return res.status(500).json({ error: "Commit failed." });
-            }
-
-            return res.json({
-              success: true,
-              transaction_id: transactionId,
-              created_at: row.created_at,
-              grand_total: grandTotal
-            });
+          return res.json({
+            success: true,
+            transaction_id: transactionId,
+            created_at: createdAt,
+            grand_total: Number(grandTotal.toFixed(2))
           });
         });
         return;
@@ -274,8 +287,8 @@ app.post('/api/sales', auth, (req, res) => {
 
         db.run(
           `INSERT INTO sales (transaction_id, product_id, qty, total, created_at)
-           VALUES (?,?,?,?, (datetime('now','localtime')))`,
-          [transactionId, it.product_id, it.qty, lineTotal],
+           VALUES (?,?,?,?,?)`,
+          [transactionId, it.product_id, it.qty, lineTotal, createdAt],
           (err2) => {
             if (err2) {
               db.run("ROLLBACK");
@@ -336,22 +349,26 @@ app.get('/api/sales/receipt', auth, (req, res) => {
     ORDER BY s.id ASC
   `;
 
-  db.get(`SELECT id, created_at, grand_total, cash, change FROM transactions WHERE id = ?`, [transaction_id], (err, tx) => {
-    if (err || !tx) return res.status(404).json({ error: "Transaction not found" });
+  db.get(
+    `SELECT id, created_at, grand_total, cash, change FROM transactions WHERE id = ?`,
+    [transaction_id],
+    (err, tx) => {
+      if (err || !tx) return res.status(404).json({ error: "Transaction not found" });
 
-    db.all(itemsQuery, [transaction_id], (err2, items) => {
-      if (err2) return res.status(500).json({ error: err2.message });
+      db.all(itemsQuery, [transaction_id], (err2, items) => {
+        if (err2) return res.status(500).json({ error: err2.message });
 
-      res.json({
-        transaction_id: tx.id,
-        created_at: tx.created_at,
-        items: items || [],
-        grand_total: tx.grand_total,
-        cash: tx.cash,
-        change: tx.change
+        res.json({
+          transaction_id: tx.id,
+          created_at: tx.created_at,
+          items: items || [],
+          grand_total: tx.grand_total,
+          cash: tx.cash,
+          change: tx.change
+        });
       });
-    });
-  });
+    }
+  );
 });
 
 // =================================================================
