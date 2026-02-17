@@ -133,7 +133,7 @@
           </div>
 
           <div class="receipt-divider"></div>
-          <div class="receipt-footer">Thank you for purchasing!</div>
+          <div class="receipt-footer">Thank you!</div>
         </div>
       `;
 
@@ -149,22 +149,34 @@
       const doc = iframe.contentWindow.document;
 
       const printCSS = `
-        @page { size: 80mm 100mm; margin: 0; }
-        html, body { margin: 0; padding: 0; width: 80mm; background: #fff; }
-        .receipt-window {
-          width: 80mm;
-          padding: 8mm 6mm;
-          font-family: "Courier New", monospace;
-          font-size: 12px;
-          color: #000;
-          box-sizing: border-box;
+        @page {
+        size: 58mm auto;
+        margin: 0;
         }
-        .receipt-header { text-align: center; margin-bottom: 10px; }
-        .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
-        .receipt-line { display: flex; justify-content: space-between; margin: 3px 0; }
-        .receipt-line.bold { font-weight: bold; margin-top: 8px; }
-        .receipt-footer { text-align: center; margin-top: 10px; font-size: 11px; }
-      `;
+
+        html, body {
+        width: 58mm;
+        margin: 0;
+      padding: 0;
+    }
+      body {
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #000;
+        background: #fff;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .receipt-window {
+        width: 80mm;
+        box-sizing: border-box;
+        padding: 8mm 6mm;
+      }
+      .receipt-divider { border-top: 2px dashed #000; margin: 6px 0; }
+      .receipt-line { display:flex; justify-content:space-between; margin:2px 0; }
+      .receipt-line.bold { font-weight:bold; margin-top:6px; }
+    `;
 
       doc.open();
       doc.write(`
