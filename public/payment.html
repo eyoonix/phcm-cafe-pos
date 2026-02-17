@@ -90,6 +90,68 @@
   let products = [];
   const token = localStorage.getItem("pos_token");
 
+  let lastReceiptData = null;
+
+function formatPH12(created_at) {
+  const d = new Date(created_at.replace(" ", "T"));
+
+  return d.toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+}
+
+function buildReceiptHTML(data) {
+  return `
+    <div class="receipt-window">
+      <div class="receipt-header" style="text-align:center;">
+        <h3 style="margin:0;">PHCM CAFETERIA</h3>
+        <div style="font-size:12px;margin-top:6px;">
+          Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
+          ${formatPH12(data.created_at)}
+        </div>
+      </div>
+
+      <div class="receipt-divider"></div>
+
+      ${data.items.map(it => `
+        <div class="receipt-line">
+          <span>${it.name} x${it.qty}</span>
+          <span>${peso(it.line_total)}</span>
+        </div>
+        <div class="receipt-line" style="font-size:11px;">
+          <span>@ ${peso(it.unit_price)} each</span>
+          <span></span>
+        </div>
+      `).join("")}
+
+      <div class="receipt-divider"></div>
+
+      <div class="receipt-line bold">
+        <span>Total</span>
+        <span>${peso(data.grand_total)}</span>
+      </div>
+      <div class="receipt-line">
+        <span>Cash</span>
+        <span>${peso(data.cash)}</span>
+      </div>
+      <div class="receipt-line">
+        <span>Change</span>
+        <span>${peso(data.change)}</span>
+      </div>
+
+      <div class="receipt-divider"></div>
+      <div class="receipt-footer" style="text-align:center;">Thank you! ❤️</div>
+    </div>
+  `;
+}
+
   function peso(n) { return "₱" + Number(n).toFixed(2); }
 
   async function fetchProducts() {
@@ -229,64 +291,77 @@
   }
 
   async function thermalPrintReceipt() {
-    const receipt = document.getElementById("receiptArea");
-    if (!receipt) return alert("Receipt not found.");
-
-    const printCSS = `
-    @page {
-        size: 58mm auto;
-        margin: 0;
-        }
-
-        html, body {
-        width: 58mm;
-        margin: 0;
-      padding: 0;
-    }
-      body {
-        font-family: "Courier New", monospace;
-        font-size: 12px;
-        color: #000;
-        background: #fff;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-      }
-      .receipt-window {
-        width: 80mm;
-        box-sizing: border-box;
-        padding: 8mm 6mm;
-      }
-      .receipt-divider { border-top: 2px dashed #000; margin: 6px 0; }
-      .receipt-line { display:flex; justify-content:space-between; margin:2px 0; }
-      .receipt-line.bold { font-weight:bold; margin-top:6px; }
-    `;
-
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(`
-      <html>
-        <head><meta charset="utf-8"><title>Receipt</title><style>${printCSS}</style></head>
-        <body>${receipt.outerHTML}</body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => document.body.removeChild(iframe), 500);
-    }, 300);
+  if (!lastReceiptData) {
+    alert("No receipt data to print yet. Complete a sale first.");
+    return;
   }
+
+  const receiptHTML = buildReceiptHTML(lastReceiptData);
+
+  const printCSS = `
+    @page { size: 58mm auto; margin: 0; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 58mm;
+      background: #fff;
+    }
+
+    body { display: block; }
+
+    .receipt-window {
+      width: 58mm;
+      padding: 8mm 6mm;
+      box-sizing: border-box;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #000;
+    }
+
+    .receipt-header h3 {
+      font-size: 20px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
+    .receipt-line { display:flex; justify-content:space-between; margin: 3px 0; }
+    .receipt-line.bold { font-weight: 900; margin-top: 6px; }
+    .receipt-footer { margin-top: 10px; font-size: 12px; font-weight: 900; }
+  `;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Receipt</title>
+        <style>${printCSS}</style>
+      </head>
+      <body>${receiptHTML}</body>
+    </html>
+  `);
+  doc.close();
+
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 800);
+  }, 300);
+}
+
 
   document.getElementById("paymentInput").addEventListener("input", updateChange);
 
@@ -310,9 +385,25 @@
       return;
     }
 
+    // After successful POST /api/sales
     alert("CUSTOMER PAYMENT SUCCESSFUL!");
 
-    showReceipt(cart, total, cash, result.transaction_id, result.created_at);
+    // Fetch exact receipt data from backend (same as trans.html uses)
+    const r = await fetch(`/api/sales/receipt?transaction_id=${result.transaction_id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const receiptData = await r.json();
+
+    if (receiptData.error) {
+     alert("Receipt error: " + receiptData.error);
+    return;
+    }
+
+    // Save for printing
+    lastReceiptData = receiptData;
+
+    // Also show preview (optional)
+    showReceipt(cart, total, receiptData.cash, receiptData.transaction_id, receiptData.created_at);
 
     cart = [];
     document.getElementById("paymentInput").value = "";
