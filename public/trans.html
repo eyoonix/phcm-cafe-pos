@@ -105,7 +105,7 @@
       const receiptHTML = `
         <div class="receipt-window">
           <div class="receipt-header">
-            <h1 style="margin:0;">PHCM CAFETERIA</h1>
+            <h3 style="margin:0;">PHCM CAFETERIA</h3>
             <div style="font-size:12px;margin-top:6px;">
               Transaction #${String(data.transaction_id).padStart(4,"0")}<br/>
               ${new Date(data.created_at.replace(" ", "T")).toLocaleString("en-PH")}
@@ -133,7 +133,7 @@
           </div>
 
           <div class="receipt-divider"></div>
-          <div class="receipt-footer">Thank you!</div>
+          <div class="receipt-footer" style="text-align:center;">Thank you! ❤️</div>
         </div>
       `;
 
