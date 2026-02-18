@@ -263,12 +263,35 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 .toggle-icon { transition: transform 0.2s; color: #a0aec0; }
 
 /* --- PAYMENT & CART --- */
+/* ============================= */
+/* PAYMENT PAGE RESPONSIVE FIX  */
+/* ============================= */
+
 .payment-layout {
-    display: flex;
-    gap: 18px;
-    height: calc(100vh - 120px); 
-    padding: 20px;
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  align-items: flex-start;
 }
+
+/* Menu side */
+.payment-layout .card:first-child {
+  flex: 2;
+}
+
+/* Cart side */
+.cart-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove dangerous height */
+.payment-layout {
+  min-height: auto;
+}
+
+
 
 #productGrid {
     display: grid;
@@ -487,61 +510,54 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 
   .payment-layout {
     flex-direction: column;
+    padding: 15px;
+    gap: 15px;
   }
 
-  /* Hide cart panel by default */
-  .cart-panel {
-    position: fixed;
-    bottom: -100%;
-    left: 0;
+  /* Menu full width */
+  .payment-layout .card {
     width: 100%;
-    height: 80%;
-    background: #fff;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
-    padding: 20px;
-    overflow-y: auto;
-    transition: bottom 0.3s ease;
-    z-index: 999;
   }
 
-  /* When open */
-  .cart-panel.open {
-    bottom: 0;
-  }
-
-  /* Floating cart button */
-  .mobile-cart-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #38a169;
-    color: white;
-    border: none;
-    padding: 15px 18px;
-    border-radius: 50px;
-    font-size: 16px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    z-index: 1000;
-  }
-
-  /* Menu grid nice spacing */
+  /* Make grid nicer */
   #productGrid {
-    display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
   .product-btn img {
-    height: 110px;
-    object-fit: cover;
+    height: 120px;
   }
 
-  /* Make buttons touch friendly */
+  /* Cart spacing */
+  .cart-panel {
+    margin-top: 10px;
+  }
+
+  .cart-total {
+    font-size: 18px;
+  }
+
+  .input {
+    font-size: 16px; /* Prevent iOS zoom */
+  }
+
   button {
-    padding: 12px;
     font-size: 15px;
+    padding: 12px;
   }
 }
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  .payment-layout {
+    flex-direction: row;
+    gap: 15px;
+  }
+
+  #productGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
+
+  }
 }
