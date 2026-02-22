@@ -97,12 +97,13 @@ db.serialize(() => {
   // Seed products
   db.get(`SELECT COUNT(*) as c FROM products`, (err, row) => {
     if (!err && row.c === 0) {
-      const stmt = db.prepare(`INSERT INTO products (name, price, stock, photo_path) VALUES (?,?,?,?)`);
-      stmt.run('PORKCHOP', 85, 10, '/photos/porkchop.jpg');
-      stmt.run('FRIED CHICKEN', 80, 10, '/photos/fried-siken.png');
-      stmt.run('ZEST-0', 15, 10, '/photos/zesto.jpg');
-      stmt.run('COKE', 20, 10, '/photos/coke.jpg');
-      stmt.run('C2', 25, 10, '/photos/c2.jpg');
+      const stmt = db.prepare(`INSERT INTO products (name, price, cost_price, stock, photo_path) VALUES (?, ?, ?, ?, ?)`);
+      stmt.run('Porkchop', 85,60, 10, '/photos/porkchop.jpg');
+      stmt.run('Fried Chicken', 80, 60, 10, '/photos/fried-siken.png');
+      stmt.run('Zest-0', 15, 10, 10, '/photos/zesto.jpg');
+      stmt.run('Coke', 20, 15, 10, '/photos/coke.jpg');
+      stmt.run('C2', 25, 20, 10, '/photos/c2.jpg');
+      stmt.run('Yakult', 15, 10, '/photos/yakult.jpg');
       stmt.finalize();
     }
   });
