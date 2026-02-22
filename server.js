@@ -103,7 +103,7 @@ db.serialize(() => {
       stmt.run('Zest-0', 15, 10, 10, '/photos/zesto.jpg');
       stmt.run('Coke', 20, 15, 10, '/photos/coke.jpg');
       stmt.run('C2', 25, 20, 10, '/photos/c2.jpg');
-      stmt.run('Yakult', 15, 10, '/photos/yakult.jpg');
+      stmt.run('Yakult', 15, 12, 10, '/photos/yakult.jpg');
       stmt.finalize();
     }
   });
