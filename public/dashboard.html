@@ -41,7 +41,7 @@
                         </tr>
                     </thead>
                     <tbody id="productsTableBody">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -64,7 +64,8 @@
                 </div>
             </div>
 
-        </div> </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -78,14 +79,22 @@ document.addEventListener('DOMContentLoaded', () => {
         location.href = 'login.html';
     });
 
+    const isAddonProduct = (p) => String(p.name || "").startsWith("[ADDON]");
+
     const refreshDashboard = async () => {
         try {
-            const res = await fetch('/api/products', { headers: { 'Authorization': `Bearer ${token}` } });
-            const products = await res.json();
-            
+            const res = await fetch('/api/products', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const allProducts = await res.json();
+
+            // ✅ FILTER OUT ADD-ONS FOR DASHBOARD
+            const products = allProducts.filter(p => !isAddonProduct(p));
+
             // 1. UPDATE PRODUCT TABLE
             const tbody = document.getElementById('productsTableBody');
-            tbody.innerHTML = ''; 
+            tbody.innerHTML = '';
 
             products.forEach(p => {
                 const row = tbody.insertRow();
@@ -114,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             });
 
-            // 2. UPDATE LOW STOCK ALERTS
+            // 2. UPDATE LOW STOCK ALERTS (also excludes add-ons now)
             const alertList = document.getElementById('lowStockList');
             const lowItems = products.filter(p => p.stock <= 5);
 

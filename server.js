@@ -5,6 +5,37 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const path = require('path');
+const multer = require("multer");
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "photos"),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const safeBase = path
+      .basename(file.originalname, ext)
+      .replace(/[^a-z0-9-_]/gi, "_");
+    cb(null, `${Date.now()}-${safeBase}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const ok = ["image/jpeg", "image/png", "image/webp"];
+    if (!ok.includes(file.mimetype)) return cb(new Error("Only JPG/PNG/WebP allowed"));
+    cb(null, true);
+  }
+});
+
+let cart = [];
+let products = [];
+let menuProducts = [];
+let addonProducts = [];
+
+function isAddonProduct(p) {
+  return String(p.name || "").startsWith("[ADDON]");
+}
 
 const SECRET = 'change_this_secret_in_prod';
 const app = express();
@@ -104,6 +135,8 @@ db.serialize(() => {
       stmt.run('Coke', 20, 15, 10, '/photos/coke.jpg');
       stmt.run('C2', 25, 20, 10, '/photos/c2.jpg');
       stmt.run('Yakult', 15, 12, 10, '/photos/yakult.jpg');
+      stmt.run('[ADDON] Rice', 15, 0, 100, '/photos/rice.png');
+      stmt.run('[ADDON] Gravy', 10, 0, 100, '/photos/gravy.png');
       stmt.finalize();
     }
   });
@@ -132,6 +165,11 @@ app.post('/api/login', (req, res) => {
     const token = jwt.sign({ id: user.id, username: user.username }, SECRET, { expiresIn: '8h' });
     res.json({ token, username: user.username });
   });
+});
+
+app.post("/api/upload", auth, upload.single("photo"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  res.json({ photo_path: `/photos/${req.file.filename}` });
 });
 
 // =================================================================

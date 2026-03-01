@@ -24,7 +24,18 @@
 
   <div class="card cart-panel">
     <h3><i class="fa fa-shopping-cart"></i> Cart</h3>
+
     <div class="cart-list" id="cartList"></div>
+
+    <!-- ✅ ADD-ONS SECTION -->
+    <div class="addons-panel">
+      <div class="addons-title">
+        <i class="fas fa-plus-circle"></i> Add-ons
+      </div>
+      <div id="addonGrid" class="addon-grid"></div>
+    </div>
+    <!-- ✅ END ADD-ONS SECTION -->
+
     <div class="cart-total">Total: <span id="totalAmount">₱0.00</span></div>
 
     <div style="margin-top:15px;">
@@ -83,87 +94,155 @@
 
 <button id="printBtn" class="btn-primary" style="display:none; margin: 0 25px 25px;">
   <i class="fas fa-print"></i> Print Receipt
-</button> 
+</button>
+
+<!-- ✅ CENTER MODAL (replaces alert()) -->
+<div id="posModalBackdrop" class="pos-modal-backdrop" aria-hidden="true">
+  <div class="pos-modal" role="dialog" aria-modal="true" aria-labelledby="posModalTitle">
+    <div class="pos-modal-head">
+      <h3 id="posModalTitle">Notice</h3>
+      <button type="button" class="pos-modal-close" id="posModalCloseBtn" aria-label="Close">✕</button>
+    </div>
+
+    <div class="pos-modal-body">
+      <p id="posModalMsg" style="margin:0;"></p>
+    </div>
+
+    <div class="pos-modal-actions">
+      <button type="button" class="pos-modal-ok" id="posModalOkBtn">OK</button>
+    </div>
+  </div>
+</div>
 
 <script>
   let cart = [];
   let products = [];
-  const token = localStorage.getItem("pos_token");
+  let menuProducts = [];
+  let addonProducts = [];
 
+  const token = localStorage.getItem("pos_token");
   let lastReceiptData = null;
 
-function formatPH12(created_at) {
-  const d = new Date(created_at.replace(" ", "T"));
-
-  return d.toLocaleString("en-PH", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-}
-
-function buildReceiptHTML(data) {
-  return `
-    <div class="receipt-window">
-      <div class="receipt-header" style="text-align:center;">
-        <h3 style="margin:0;">PHCM CAFETERIA</h3>
-        <div style="font-size:12px;margin-top:6px;">
-          Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
-          ${formatPH12(data.created_at)}
-        </div>
-      </div>
-
-      <div class="receipt-divider"></div>
-
-      ${data.items.map(it => `
-        <div class="receipt-line">
-          <span>${it.name} x${it.qty}</span>
-          <span>${peso(it.line_total)}</span>
-        </div>
-        <div class="receipt-line" style="font-size:11px;">
-          <span>@ ${peso(it.unit_price)} each</span>
-          <span></span>
-        </div>
-      `).join("")}
-
-      <div class="receipt-divider"></div>
-
-      <div class="receipt-line bold">
-        <span>Total</span>
-        <span>${peso(data.grand_total)}</span>
-      </div>
-      <div class="receipt-line">
-        <span>Cash</span>
-        <span>${peso(data.cash)}</span>
-      </div>
-      <div class="receipt-line">
-        <span>Change</span>
-        <span>${peso(data.change)}</span>
-      </div>
-
-      <div class="receipt-divider"></div>
-      <div class="receipt-footer" style="text-align:center;">Thank you! ❤️</div>
-    </div>
-  `;
-}
-
   function peso(n) { return "₱" + Number(n).toFixed(2); }
+
+  function isAddonProduct(p) {
+    return String(p.name || "").startsWith("[ADDON]");
+  }
+
+  // ✅ Center modal (like Customize UI)
+  function showCenterModal(message, title = "Notice") {
+    const backdrop = document.getElementById("posModalBackdrop");
+    const titleEl = document.getElementById("posModalTitle");
+    const msgEl = document.getElementById("posModalMsg");
+    const okBtn = document.getElementById("posModalOkBtn");
+    const closeBtn = document.getElementById("posModalCloseBtn");
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+
+    backdrop.classList.add("show");
+    backdrop.setAttribute("aria-hidden", "false");
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        backdrop.classList.remove("show");
+        backdrop.setAttribute("aria-hidden", "true");
+        okBtn.removeEventListener("click", onOk);
+        closeBtn.removeEventListener("click", onOk);
+        backdrop.removeEventListener("click", onBackdrop);
+        document.removeEventListener("keydown", onEsc);
+        resolve();
+      };
+
+      const onOk = () => cleanup();
+      const onBackdrop = (e) => { if (e.target === backdrop) cleanup(); };
+      const onEsc = (e) => { if (e.key === "Escape") cleanup(); };
+
+      okBtn.addEventListener("click", onOk);
+      closeBtn.addEventListener("click", onOk);
+      backdrop.addEventListener("click", onBackdrop);
+      document.addEventListener("keydown", onEsc);
+    });
+  }
+
+  function formatPH12(created_at) {
+    const d = new Date(created_at.replace(" ", "T"));
+    return d.toLocaleString("en-PH", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true
+    });
+  }
+
+  function buildReceiptHTML(data) {
+    return `
+      <div class="receipt-window">
+        <div class="receipt-header" style="text-align:center;">
+          <h3 style="margin:0;">PHCM CAFETERIA</h3>
+          <div style="font-size:12px;margin-top:6px;">
+            Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
+            ${formatPH12(data.created_at)}
+          </div>
+        </div>
+
+        <div class="receipt-divider"></div>
+
+        ${data.items.map(it => `
+          <div class="receipt-line">
+            <span>${it.name} x${it.qty}</span>
+            <span>${peso(it.line_total)}</span>
+          </div>
+          <div class="receipt-line" style="font-size:11px;">
+            <span>@ ${peso(it.unit_price)} each</span>
+            <span></span>
+          </div>
+        `).join("")}
+
+        <div class="receipt-divider"></div>
+
+        <div class="receipt-line bold">
+          <span>Total</span>
+          <span>${peso(data.grand_total)}</span>
+        </div>
+        <div class="receipt-line">
+          <span>Cash</span>
+          <span>${peso(data.cash)}</span>
+        </div>
+        <div class="receipt-line">
+          <span>Change</span>
+          <span>${peso(data.change)}</span>
+        </div>
+
+        <div class="receipt-divider"></div>
+        <div class="receipt-footer" style="text-align:center;">Thank you! ❤️</div>
+      </div>
+    `;
+  }
 
   async function fetchProducts() {
     const res = await fetch("/api/products", {
       headers: { Authorization: `Bearer ${token}` }
     });
+
     products = await res.json();
 
+    menuProducts = products.filter(p => !isAddonProduct(p));
+    addonProducts = products.filter(p => isAddonProduct(p));
+
+    renderMenuGrid();
+    renderAddons();
+  }
+
+  function renderMenuGrid() {
     const grid = document.getElementById("productGrid");
     grid.innerHTML = "";
 
-    products.forEach(p => {
+    menuProducts.forEach(p => {
       const isOutOfStock = p.stock <= 0;
       const div = document.createElement("div");
       div.className = `product-btn ${isOutOfStock ? "disabled-item" : ""}`;
@@ -183,8 +262,8 @@ function buildReceiptHTML(data) {
         </div>
       `;
 
-      div.onclick = () => {
-        if (isOutOfStock) return alert("This item is currently out of stock!");
+      div.onclick = async () => {
+        if (isOutOfStock) return showCenterModal("This item is currently out of stock!", "Out of Stock");
         addToCart(p);
       };
 
@@ -192,12 +271,35 @@ function buildReceiptHTML(data) {
     });
   }
 
-  function addToCart(p) {
+  function renderAddons() {
+    const addonGrid = document.getElementById("addonGrid");
+    if (!addonGrid) return;
+
+    if (addonProducts.length === 0) {
+      addonGrid.innerHTML = `<div class="addon-empty">No add-ons yet</div>`;
+      return;
+    }
+
+    addonGrid.innerHTML = addonProducts.map(p => `
+      <button class="addon-btn" onclick="addToCartById(${p.id})">
+        <span>${String(p.name).replace("[ADDON] ", "")}</span>
+        <strong>${peso(p.price)}</strong>
+      </button>
+    `).join("");
+  }
+
+  function addToCartById(id) {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    addToCart(p);
+  }
+
+  async function addToCart(p) {
     const itemInCart = cart.find(i => i.product_id === p.id);
 
     if (itemInCart) {
       if (itemInCart.qty >= p.stock) {
-        alert(`Sorry, only ${p.stock} units of ${p.name} are available.`);
+        await showCenterModal(`Sorry, only ${p.stock} units of ${p.name} are available.`, "Stock Limit");
         return;
       }
       itemInCart.qty++;
@@ -218,6 +320,7 @@ function buildReceiptHTML(data) {
 
     list.innerHTML = cart.map(item => {
       const p = products.find(prod => prod.id === item.product_id);
+      if (!p) return "";
       const subtotal = p.price * item.qty;
       total += subtotal;
 
@@ -249,9 +352,9 @@ function buildReceiptHTML(data) {
     updateChange();
   }
 
-  function setExact() {
+  async function setExact() {
     const total = parseFloat(document.getElementById("totalAmount").innerText.replace("₱","")) || 0;
-    if (total <= 0) return alert("Cart is empty!");
+    if (total <= 0) return showCenterModal("Cart is empty!", "Empty Cart");
     document.getElementById("paymentInput").value = total.toFixed(2);
     updateChange();
   }
@@ -270,6 +373,7 @@ function buildReceiptHTML(data) {
 
     items.forEach(it => {
       const p = products.find(prod => prod.id === it.product_id);
+      if (!p) return;
       receiptItems.innerHTML += `
         <div class="receipt-line">
           <span>${p.name} x${it.qty}</span>
@@ -291,77 +395,76 @@ function buildReceiptHTML(data) {
   }
 
   async function thermalPrintReceipt() {
-  if (!lastReceiptData) {
-    alert("No receipt data to print yet. Complete a sale first.");
-    return;
+    if (!lastReceiptData) {
+      await showCenterModal("No receipt data to print yet. Complete a sale first.", "No Receipt");
+      return;
+    }
+
+    const receiptHTML = buildReceiptHTML(lastReceiptData);
+
+    const printCSS = `
+      @page { size: 58mm auto; margin: 0; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 58mm;
+        background: #fff;
+      }
+
+      body { display: block; }
+
+      .receipt-window {
+        width: 58mm;
+        padding: 8mm 6mm;
+        box-sizing: border-box;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        font-weight: 700;
+        color: #000;
+      }
+
+      .receipt-header h3 {
+        font-size: 20px;
+        font-weight: 900;
+        margin: 0;
+      }
+
+      .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
+      .receipt-line { display:flex; justify-content:space-between; margin: 3px 0; }
+      .receipt-line.bold { font-weight: 900; margin-top: 6px; }
+      .receipt-footer { margin-top: 10px; font-size: 12px; font-weight: 900; }
+    `;
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Receipt</title>
+          <style>${printCSS}</style>
+        </head>
+        <body>${receiptHTML}</body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => document.body.removeChild(iframe), 800);
+    }, 300);
   }
-
-  const receiptHTML = buildReceiptHTML(lastReceiptData);
-
-  const printCSS = `
-    @page { size: 58mm auto; margin: 0; }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 58mm;
-      background: #fff;
-    }
-
-    body { display: block; }
-
-    .receipt-window {
-      width: 58mm;
-      padding: 8mm 6mm;
-      box-sizing: border-box;
-      font-family: "Courier New", monospace;
-      font-size: 12px;
-      font-weight: 700;
-      color: #000;
-    }
-
-    .receipt-header h3 {
-      font-size: 20px;
-      font-weight: 900;
-      margin: 0;
-    }
-
-    .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
-    .receipt-line { display:flex; justify-content:space-between; margin: 3px 0; }
-    .receipt-line.bold { font-weight: 900; margin-top: 6px; }
-    .receipt-footer { margin-top: 10px; font-size: 12px; font-weight: 900; }
-  `;
-
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Receipt</title>
-        <style>${printCSS}</style>
-      </head>
-      <body>${receiptHTML}</body>
-    </html>
-  `);
-  doc.close();
-
-  setTimeout(() => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(() => document.body.removeChild(iframe), 800);
-  }, 300);
-}
-
 
   document.getElementById("paymentInput").addEventListener("input", updateChange);
 
@@ -381,28 +484,24 @@ function buildReceiptHTML(data) {
     const result = await response.json();
 
     if (result.error) {
-      alert(result.error);
+      await showCenterModal(result.error, "Error");
       return;
     }
 
-    // After successful POST /api/sales
-    alert("CUSTOMER PAYMENT SUCCESSFUL!");
+    await showCenterModal("CUSTOMER PAYMENT SUCCESSFUL!", "PAYMENT STATUS");
 
-    // Fetch exact receipt data from backend (same as trans.html uses)
     const r = await fetch(`/api/sales/receipt?transaction_id=${result.transaction_id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const receiptData = await r.json();
 
     if (receiptData.error) {
-     alert("Receipt error: " + receiptData.error);
-    return;
+      await showCenterModal("Receipt error: " + receiptData.error, "Receipt Error");
+      return;
     }
 
-    // Save for printing
     lastReceiptData = receiptData;
 
-    // Also show preview (optional)
     showReceipt(cart, total, receiptData.cash, receiptData.transaction_id, receiptData.created_at);
 
     cart = [];
