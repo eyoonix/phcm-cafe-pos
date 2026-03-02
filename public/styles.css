@@ -825,3 +825,72 @@ details[open] .toggle-icon { transform: rotate(180deg); }
 .pos-modal-backdrop.show {
   display: flex;
 }
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  padding: 22px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  text-align: center;
+  border: 1px solid #eef2f7;
+}
+
+.kpi-card h4 {
+  color: #333335;
+  font-size: 0.85rem;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 800;
+}
+
+.kpi-card .value {
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: #204291;
+}
+
+.revenue-value { color: #2b6cb0; }
+.profit-value  { color: #38a169; }
+
+.stats-table th,
+.stats-table td {
+  text-align: center !important;
+}
+
+.badge {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.card-top-gap {
+  margin-top: 18px;
+}
+
+.stats-empty {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: #edf2f7;
+  border: 1px solid #cbd5e0;
+}

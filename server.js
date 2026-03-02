@@ -352,6 +352,9 @@ app.post('/api/sales', auth, (req, res) => {
 
 // ✅ Transaction list for history page (ONE row = ONE transaction)
 app.get('/api/sales/transactions', auth, (req, res) => {
+  const date = (req.query.date || manilaDateOnly()).trim();
+  const like = `${date}%`;
+
   const query = `
     SELECT
       t.id as transaction_id,
@@ -362,10 +365,12 @@ app.get('/api/sales/transactions', auth, (req, res) => {
     FROM transactions t
     LEFT JOIN sales s ON s.transaction_id = t.id
     LEFT JOIN products p ON p.id = s.product_id
+    WHERE t.created_at LIKE ?
     GROUP BY t.id
     ORDER BY t.id DESC
   `;
-  db.all(query, [], (err, rows) => {
+
+  db.all(query, [like], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows || []);
   });
@@ -414,6 +419,9 @@ app.get('/api/sales/receipt', auth, (req, res) => {
 // STATS / ALERTS / RESTOCK
 // =================================================================
 app.get('/api/stats', auth, (req, res) => {
+  const date = (req.query.date || manilaDateOnly()).trim(); // YYYY-MM-DD
+  const like = `${date}%`;
+
   const summaryQuery = `
     SELECT
       COALESCE(SUM(s.total), 0) as revenue,
@@ -421,26 +429,50 @@ app.get('/api/stats', auth, (req, res) => {
       COALESCE(SUM((p.price - IFNULL(p.cost_price, 0)) * s.qty), 0) as profit
     FROM sales s
     JOIN products p ON s.product_id = p.id
+    WHERE s.created_at LIKE ?
   `;
 
+  // menu only (exclude addons)
   const topItemsQuery = `
     SELECT p.name, SUM(s.qty) as sold
     FROM sales s
     JOIN products p ON s.product_id = p.id
+    WHERE s.created_at LIKE ?
+      AND p.name NOT LIKE '[ADDON]%'
     GROUP BY s.product_id
     ORDER BY sold DESC
     LIMIT 5
   `;
 
-  db.get(summaryQuery, [], (err, summary) => {
+  // addons only
+  const topAddonsQuery = `
+    SELECT p.name, SUM(s.qty) as sold
+    FROM sales s
+    JOIN products p ON s.product_id = p.id
+    WHERE s.created_at LIKE ?
+      AND p.name LIKE '[ADDON]%'
+    GROUP BY s.product_id
+    ORDER BY sold DESC
+    LIMIT 5
+  `;
+
+  db.get(summaryQuery, [like], (err, summary) => {
     if (err) return res.status(500).json({ error: err.message });
-    db.all(topItemsQuery, [], (err2, topItems) => {
+
+    db.all(topItemsQuery, [like], (err2, topItems) => {
       if (err2) return res.status(500).json({ error: err2.message });
-      res.json({
-        revenue: summary.revenue,
-        total_sales: summary.total_sales,
-        profit: summary.profit,
-        top_items: topItems || []
+
+      db.all(topAddonsQuery, [like], (err3, topAddons) => {
+        if (err3) return res.status(500).json({ error: err3.message });
+
+        res.json({
+          date,
+          revenue: summary?.revenue || 0,
+          total_sales: summary?.total_sales || 0,
+          profit: summary?.profit || 0,
+          top_items: topItems || [],
+          top_addons: topAddons || []
+        });
       });
     });
   });
