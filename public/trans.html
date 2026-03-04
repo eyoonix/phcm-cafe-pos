@@ -12,7 +12,7 @@
 <header class="header">
   <div class="header-brand">
     <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
-    PHCM CAFETERIA
+    UPHS - Manila
   </div>
 
   <nav class="header-nav">
@@ -163,7 +163,7 @@
       const receiptHTML = `
         <div class="receipt-window">
           <div class="receipt-header" style="text-align:center;">
-            <h3 style="margin:0;">PHCM CAFETERIA</h3>
+            <h3 style="margin:0;">UPHS - Manila</h3>
             <div style="font-size:12px;margin-top:6px;">
               Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
               ${new Date(data.created_at.replace(" ", "T")).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}

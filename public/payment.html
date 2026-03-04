@@ -11,7 +11,7 @@
 <header class="header">
   <div class="header-brand">
     <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
-    PHCM CAFETERIA
+    UPHS - Manila
   </div>
   <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
 </header>
@@ -64,7 +64,7 @@
 <!-- RECEIPT PREVIEW -->
 <div id="receiptArea" class="receipt-window" style="display:none; margin: 25px;">
   <div class="receipt-header" style="text-align:center;">
-    <h3 style="margin:0;">PHCM CAFETERIA</h3>
+    <h3 style="margin:0;">UPHS - Manila</h3>
     <div style="font-size:12px; margin-top:6px;">
       <div id="receiptTxn">Transaction #0000</div>
       <div id="receiptMeta"></div>
@@ -183,7 +183,7 @@
     return `
       <div class="receipt-window">
         <div class="receipt-header" style="text-align:center;">
-          <h3 style="margin:0;">PHCM CAFETERIA</h3>
+          <h3 style="margin:0;">UPHS - Manila</h3>
           <div style="font-size:12px;margin-top:6px;">
             Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
             ${formatPH12(data.created_at)}
