@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PHCM POS | Transactions</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
@@ -13,87 +14,265 @@
     <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
     PHCM CAFETERIA
   </div>
-  <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
+
+  <nav class="header-nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="#" id="logoutBtn">Logout</a>
+  </nav>
 </header>
 
 <div class="container">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <h1><i class="fas fa-history"></i> Transaction History</h1>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <h1 style="margin:0;"><i class="fas fa-history"></i> Transaction History</h1>
     <input type="date" id="datePicker" class="input" style="width:180px;">
   </div>
 
-  <div id="historyContainer" class="history-list"></div>
+  <div id="historyContainer" class="history-list" style="margin-top:15px;"></div>
 </div>
 
 <script>
-const token = localStorage.getItem("pos_token");
-if (!token) window.location.href = "login.html";
+  const token = localStorage.getItem("pos_token");
+  if (!token) window.location.href = "login.html";
 
-function peso(n) { return "₱" + Number(n).toFixed(2); }
-
-const datePicker = document.getElementById("datePicker");
-const today = new Date().toISOString().split("T")[0];
-datePicker.value = today;
-
-async function loadHistory(date) {
-  const res = await fetch(`/api/sales/transactions?date=${date}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
-  const history = await res.json();
-  const container = document.getElementById("historyContainer");
-  container.innerHTML = "";
-
-  if (!history.length) {
-    container.innerHTML = "<p>No transactions for this date.</p>";
-    return;
+  function logoutNow() {
+    localStorage.removeItem("pos_token");
+    window.location.href = "login.html";
   }
 
-  history.forEach((tx) => {
-    const dateStr = new Date(tx.created_at.replace(" ", "T"))
-      .toLocaleString("en-PH", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit"
+  // logout button
+  document.getElementById("logoutBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    logoutNow();
+  });
+
+  function peso(n) { return "₱" + Number(n || 0).toFixed(2); }
+
+  const datePicker = document.getElementById("datePicker");
+  const historyContainer = document.getElementById("historyContainer");
+
+  // default today (browser date)
+  const today = new Date().toISOString().split("T")[0];
+  datePicker.value = today;
+
+  datePicker.addEventListener("change", () => loadHistory(datePicker.value));
+  document.addEventListener("DOMContentLoaded", () => loadHistory(today));
+
+  async function loadHistory(date) {
+    historyContainer.innerHTML = `<p style="padding:10px;">Loading...</p>`;
+
+    const res = await fetch(`/api/sales/transactions?date=${encodeURIComponent(date)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // ✅ if token expired/invalid
+    if (res.status === 401 || res.status === 403) {
+      alert("Session expired. Please login again.");
+      logoutNow();
+      return;
+    }
+
+    const history = await res.json().catch(() => []);
+
+    historyContainer.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+      historyContainer.innerHTML = `<p style="padding:10px;">No transactions for this date.</p>`;
+      return;
+    }
+
+    history.forEach((tx) => {
+      // ✅ show in PH time
+      const dateStr = new Date(tx.created_at.replace(" ", "T"))
+        .toLocaleString("en-PH", {
+          timeZone: "Asia/Manila",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+      const items = (tx.items_summary || "")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const card = document.createElement("div");
+      card.className = "order-card";
+
+      card.innerHTML = `
+        <details>
+          <summary>
+            <div class="summary-content">
+              <span class="order-id">Order #${String(tx.transaction_id).padStart(3,"0")}</span>
+              <span class="order-date">${dateStr}</span>
+              <span class="badge">${tx.item_count} Items</span>
+              <span class="order-total">${peso(tx.grand_total)}</span>
+              <i class="fas fa-chevron-down toggle-icon"></i>
+            </div>
+          </summary>
+
+          <div class="order-details">
+            <h5 style="margin:0 0 10px 0;"><i class="fas fa-list"></i> Items Bought</h5>
+
+            <div class="breakdown-grid">
+              ${items.map(item => `<div class="breakdown-item">${item}</div>`).join("")}
+            </div>
+
+            <div class="order-actions" style="margin-top:12px;">
+              <button class="btn-primary print-btn" data-transaction-id="${tx.transaction_id}">
+                <i class="fas fa-print"></i> Print Receipt
+              </button>
+            </div>
+          </div>
+        </details>
+      `;
+
+      historyContainer.appendChild(card);
+    });
+
+    // attach print listeners AFTER cards exist
+    historyContainer.querySelectorAll(".print-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const transactionId = btn.dataset.transactionId;
+        printReceiptFromHistory(transactionId);
+      });
+    });
+  }
+
+  async function printReceiptFromHistory(transactionId) {
+    try {
+      const res = await fetch(`/api/sales/receipt?transaction_id=${encodeURIComponent(transactionId)}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-    const card = document.createElement("div");
-    card.className = "order-card";
+      // ✅ if token expired/invalid
+      if (res.status === 401 || res.status === 403) {
+        alert("Session expired. Please login again.");
+        logoutNow();
+        return;
+      }
 
-    card.innerHTML = `
-      <details>
-        <summary>
-          <div class="summary-content">
-            <span class="order-id">Order #${String(tx.transaction_id).padStart(3,"0")}</span>
-            <span class="order-date">${dateStr}</span>
-            <span class="badge">${tx.item_count} Items</span>
-            <span class="order-total">${peso(tx.grand_total)}</span>
-            <i class="fas fa-chevron-down toggle-icon"></i>
-          </div>
-        </summary>
+      const data = await res.json();
+      if (data.error) {
+        alert("Receipt error: " + data.error);
+        return;
+      }
 
-        <div class="order-details">
-          <div class="breakdown-grid">
-            ${(tx.items_summary || "").split(",").filter(Boolean).map(item => `
-              <div class="breakdown-item">${item}</div>
-            `).join("")}
+      const receiptHTML = `
+        <div class="receipt-window">
+          <div class="receipt-header" style="text-align:center;">
+            <h3 style="margin:0;">PHCM CAFETERIA</h3>
+            <div style="font-size:12px;margin-top:6px;">
+              Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
+              ${new Date(data.created_at.replace(" ", "T")).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
+            </div>
           </div>
+
+          <div class="receipt-divider"></div>
+
+          ${data.items.map(it => `
+            <div class="receipt-line">
+              <span>${it.name} x${it.qty}</span>
+              <span>₱${Number(it.line_total).toFixed(2)}</span>
+            </div>
+            <div class="receipt-line" style="font-size:11px;">
+              <span>@ ₱${Number(it.unit_price).toFixed(2)} each</span>
+              <span></span>
+            </div>
+          `).join("")}
+
+          <div class="receipt-divider"></div>
+
+          <div class="receipt-line bold">
+            <span>Total</span>
+            <span>₱${Number(data.grand_total).toFixed(2)}</span>
+          </div>
+
+          <div class="receipt-line">
+            <span>Cash</span>
+            <span>₱${Number(data.cash).toFixed(2)}</span>
+          </div>
+
+          <div class="receipt-line">
+            <span>Change</span>
+            <span>₱${Number(data.change).toFixed(2)}</span>
+          </div>
+
+          <div class="receipt-divider"></div>
+          <div class="receipt-footer" style="text-align:center;">Thank you! ❤️</div>
         </div>
-      </details>
-    `;
+      `;
 
-    container.appendChild(card);
-  });
-}
+      const printCSS = `
+        @page { size: 58mm auto; margin: 0; }
 
-datePicker.addEventListener("change", () => {
-  loadHistory(datePicker.value);
-});
+        html, body {
+          margin: 0;
+          padding: 0;
+          width: 58mm;
+          background: #fff;
+        }
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadHistory(today);
-});
+        body { display: block; }
+
+        .receipt-window {
+          width: 58mm;
+          padding: 8mm 6mm;
+          box-sizing: border-box;
+          font-family: "Courier New", monospace;
+          font-size: 12px;
+          font-weight: 700;
+          color: #000;
+        }
+
+        .receipt-header h3 {
+          font-size: 20px;
+          font-weight: 900;
+          margin: 0;
+        }
+
+        .receipt-divider { border-top: 2px dashed #000; margin: 8px 0; }
+        .receipt-line { display:flex; justify-content:space-between; margin: 3px 0; }
+        .receipt-line.bold { font-weight: 900; margin-top: 6px; }
+        .receipt-footer { margin-top: 10px; font-size: 12px; font-weight: 900; }
+      `;
+
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Receipt</title>
+            <style>${printCSS}</style>
+          </head>
+          <body>${receiptHTML}</body>
+        </html>
+      `);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        setTimeout(() => document.body.removeChild(iframe), 800);
+      }, 300);
+
+    } catch (err) {
+      console.error(err);
+      alert("Print failed.");
+    }
+  }
 </script>
 
 </body>
