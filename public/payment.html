@@ -61,9 +61,10 @@
   </div>
 </div>
 
-<!-- RECEIPT PREVIEW -->
-<div id="receiptArea" class="receipt-window" style="display:none; margin: 25px;">
+<!-- ✅ RECEIPT PREVIEW (WITH LOGO + TABLE) -->
+<div id="receiptArea" class="receipt-window receipt-preview" style="display:none; margin: 25px;">
   <div class="receipt-header" style="text-align:center;">
+    <img src="/photos/phcm-logo.png" alt="Logo" class="receipt-logo" style="width:70px;height:auto;margin-bottom:6px;" />
     <h3 style="margin:0;">UPHS - Manila</h3>
     <div style="font-size:12px; margin-top:6px;">
       <div id="receiptTxn">Transaction #0000</div>
@@ -72,7 +73,18 @@
   </div>
 
   <div class="receipt-divider"></div>
-  <div id="receiptItems"></div>
+
+  <table class="receipt-table" style="width:100%; font-size:12px; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; border-bottom:1px dashed #000; padding-bottom:6px;">Qty</th>
+        <th style="text-align:left; border-bottom:1px dashed #000; padding-bottom:6px;">Item</th>
+        <th style="text-align:right; border-bottom:1px dashed #000; padding-bottom:6px;">Amount</th>
+      </tr>
+    </thead>
+    <tbody id="receiptItemsTable"></tbody>
+  </table>
+
   <div class="receipt-divider"></div>
 
   <div class="receipt-line bold">
@@ -129,7 +141,7 @@
     return String(p.name || "").startsWith("[ADDON]");
   }
 
-  // ✅ Center modal (like Customize UI)
+  // ✅ Center modal
   function showCenterModal(message, title = "Notice") {
     const backdrop = document.getElementById("posModalBackdrop");
     const titleEl = document.getElementById("posModalTitle");
@@ -183,6 +195,7 @@
     return `
       <div class="receipt-window">
         <div class="receipt-header" style="text-align:center;">
+          <img src="/photos/phcm-logo.png" class="receipt-logo" style="width:70px;height:auto;margin-bottom:6px;" />
           <h3 style="margin:0;">UPHS - Manila</h3>
           <div style="font-size:12px;margin-top:6px;">
             Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
@@ -359,6 +372,7 @@
     updateChange();
   }
 
+  // ✅ UPDATED: Receipt Preview uses TABLE
   function showReceipt(items, total, cash, transactionId, createdAt) {
     const change = cash - total;
 
@@ -366,24 +380,24 @@
       `Transaction #${String(transactionId).padStart(4, "0")}`;
 
     document.getElementById("receiptMeta").innerText =
-      new Date(createdAt.replace(" ", "T")).toLocaleString();
+      new Date(createdAt.replace(" ", "T")).toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
-    const receiptItems = document.getElementById("receiptItems");
-    receiptItems.innerHTML = "";
+    const tbody = document.getElementById("receiptItemsTable");
+    tbody.innerHTML = "";
 
     items.forEach(it => {
       const p = products.find(prod => prod.id === it.product_id);
       if (!p) return;
-      receiptItems.innerHTML += `
-        <div class="receipt-line">
-          <span>${p.name} x${it.qty}</span>
-          <span>${peso(p.price * it.qty)}</span>
-        </div>
-        <div class="receipt-line" style="font-size:11px;">
-          <span>@ ${peso(p.price)} each</span>
-          <span></span>
-        </div>
+
+      const lineTotal = p.price * it.qty;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="padding:4px 0;">${it.qty}</td>
+        <td style="padding:4px 0;">${p.name}</td>
+        <td style="padding:4px 0; text-align:right;">${peso(lineTotal)}</td>
       `;
+      tbody.appendChild(tr);
     });
 
     document.getElementById("receiptTotal").innerText = peso(total);
@@ -422,6 +436,14 @@
         font-size: 12px;
         font-weight: 700;
         color: #000;
+      }
+
+      .receipt-header { text-align:center; }
+
+      .receipt-logo {
+        width:70px;
+        height:auto;
+        margin-bottom:6px;
       }
 
       .receipt-header h3 {

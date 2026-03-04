@@ -162,8 +162,9 @@
 
       const receiptHTML = `
         <div class="receipt-window">
-          <div class="receipt-header" style="text-align:center;">
-            <h3 style="margin:0;">UPHS - Manila</h3>
+          <div class="receipt-header">
+            <img src="/photos/phcm-logo.png" class="receipt-logo" />
+            <h3>UPHS - Manila</h3>
             <div style="font-size:12px;margin-top:6px;">
               Transaction #${String(data.transaction_id).padStart(4, "0")}<br/>
               ${new Date(data.created_at.replace(" ", "T")).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
@@ -225,6 +226,16 @@
           font-size: 12px;
           font-weight: 700;
           color: #000;
+        }
+
+        .receipt-header {
+        text-align:center;
+        }
+
+        .receipt-logo {
+        width:70px;
+        height:auto;
+        margin-bottom:4px;
         }
 
         .receipt-header h3 {
