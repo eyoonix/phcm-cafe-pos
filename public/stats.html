@@ -133,7 +133,7 @@ async function fetchStats(date) {
       addonsBody.innerHTML = `<tr><td colspan="2">No add-on sales.</td></tr>`;
     } else {
       data.top_addons.forEach(item => {
-        const clean = item.name.replace('[ADDON] ', '');
+        const clean = item.name.replace('[A/O] ', '');
         const row = addonsBody.insertRow();
         row.innerHTML = `
           <td><strong>${clean}</strong></td>

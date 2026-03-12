@@ -34,7 +34,7 @@ let menuProducts = [];
 let addonProducts = [];
 
 function isAddonProduct(p) {
-  return String(p.name || "").startsWith("[ADDON]");
+  return String(p.name || "").startsWith("[A/O]");
 }
 
 const SECRET = 'change_this_secret_in_prod';
@@ -135,8 +135,8 @@ db.serialize(() => {
       stmt.run('Coke', 20, 15, 10, '/photos/coke.jpg');
       stmt.run('C2', 25, 20, 10, '/photos/c2.jpg');
       stmt.run('Yakult', 15, 12, 10, '/photos/yakult.jpg');
-      stmt.run('[ADDON] Rice', 15, 0, 100, '/photos/rice.png');
-      stmt.run('[ADDON] Gravy', 10, 0, 100, '/photos/gravy.png');
+      stmt.run('[A/O] Rice', 15, 0, 100, '/photos/rice.png');
+      stmt.run('[A/O] Gravy', 10, 0, 100, '/photos/gravy.png');
       stmt.finalize();
     }
   });
@@ -438,7 +438,7 @@ app.get('/api/stats', auth, (req, res) => {
     FROM sales s
     JOIN products p ON s.product_id = p.id
     WHERE s.created_at LIKE ?
-      AND p.name NOT LIKE '[ADDON]%'
+      AND p.name NOT LIKE '[A/O]%'
     GROUP BY s.product_id
     ORDER BY sold DESC
     LIMIT 5
@@ -450,7 +450,7 @@ app.get('/api/stats', auth, (req, res) => {
     FROM sales s
     JOIN products p ON s.product_id = p.id
     WHERE s.created_at LIKE ?
-      AND p.name LIKE '[ADDON]%'
+      AND p.name LIKE '[A/O]%'
     GROUP BY s.product_id
     ORDER BY sold DESC
     LIMIT 5

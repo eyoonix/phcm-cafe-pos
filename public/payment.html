@@ -11,7 +11,7 @@
 <header class="header">
   <div class="header-brand">
     <img src="/photos/phcm-logo.png" class="header-logo" alt="Logo" />
-    UPHS - Manila
+    PHCM CAFETERIA
   </div>
   <a href="dashboard.html" class="btn-primary" style="text-decoration:none;">Dashboard</a>
 </header>
@@ -108,7 +108,7 @@
   <i class="fas fa-print"></i> Print Receipt
 </button>
 
-<!-- ✅ CENTER MODAL (replaces alert()) -->
+<!-- ALERT MODAL-->
 <div id="posModalBackdrop" class="pos-modal-backdrop" aria-hidden="true">
   <div class="pos-modal" role="dialog" aria-modal="true" aria-labelledby="posModalTitle">
     <div class="pos-modal-head">
@@ -132,16 +132,16 @@
   let menuProducts = [];
   let addonProducts = [];
 
-  const token = localStorage.getItem("pos_token");
-  let lastReceiptData = null;
+  const token = localStorage.getItem('pos_token');
+  if (!token) window.location.href = 'login.html';  let lastReceiptData = null;
 
   function peso(n) { return "₱" + Number(n).toFixed(2); }
 
   function isAddonProduct(p) {
-    return String(p.name || "").startsWith("[ADDON]");
+    return String(p.name || "").startsWith("[A/O]");
   }
 
-  // ✅ Center modal
+  // CENTER MODAL
   function showCenterModal(message, title = "Notice") {
     const backdrop = document.getElementById("posModalBackdrop");
     const titleEl = document.getElementById("posModalTitle");
@@ -295,7 +295,7 @@
 
     addonGrid.innerHTML = addonProducts.map(p => `
       <button class="addon-btn" onclick="addToCartById(${p.id})">
-        <span>${String(p.name).replace("[ADDON] ", "")}</span>
+        <span>${String(p.name).replace("[A/O] ", "")}</span>
         <strong>${peso(p.price)}</strong>
       </button>
     `).join("");
@@ -372,7 +372,7 @@
     updateChange();
   }
 
-  // ✅ UPDATED: Receipt Preview uses TABLE
+  // RECEIPT PREVIEW
   function showReceipt(items, total, cash, transactionId, createdAt) {
     const change = cash - total;
 
@@ -510,7 +510,7 @@
       return;
     }
 
-    await showCenterModal("CUSTOMER PAYMENT SUCCESSFUL!", "PAYMENT STATUS");
+    await showCenterModal("SUCCESSFUL!", "PAYMENT STATUS");
 
     const r = await fetch(`/api/sales/receipt?transaction_id=${result.transaction_id}`, {
       headers: { Authorization: `Bearer ${token}` }

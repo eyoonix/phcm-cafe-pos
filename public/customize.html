@@ -99,7 +99,7 @@
       </div>
 
       <div class="customize-hint">
-        <strong>Tip:</strong> To create an add-on, name it like <code>[ADDON] Extra Rice</code>.
+        <strong>Tip:</strong> To create an add-on, name it like <code>[A/O] Extra Rice</code>.
         <br/>
         If you upload a photo here, it will automatically save to the server.
       </div>
@@ -206,7 +206,7 @@
   }
 
   function isAddon(p) {
-    return (p.name || "").toUpperCase().startsWith("[ADDON]");
+    return (p.name || "").toUpperCase().startsWith("[A/O]");
   }
 
   function stockBadgeClass(stock) {
@@ -233,8 +233,6 @@
     costEl.value = "";
     stockEl.value = "";
     formErrorEl.textContent = "";
-
-    // ✅ clear upload fields
     photoFileEl.value = "";
     photoPathEl.value = "";
     currentPhotoLabelEl.style.display = "none";
@@ -257,8 +255,6 @@
     priceEl.value = Number(p.price || 0);
     costEl.value = Number(p.cost_price || 0);
     stockEl.value = Number(p.stock || 0);
-
-    // ✅ keep existing photo path (if user doesn't upload new one)
     const existing = p.photo_path || "";
     photoPathEl.value = existing;
 
@@ -385,7 +381,7 @@
       .replaceAll("'", "&#039;");
   }
 
-  // ✅ uploads selected file (if any) and returns /photos/... path
+  // FILE UPLOAD SELECTED
   async function uploadPhotoIfNeeded() {
     const file = photoFileEl?.files?.[0];
     if (!file) return photoPathEl.value || "";
